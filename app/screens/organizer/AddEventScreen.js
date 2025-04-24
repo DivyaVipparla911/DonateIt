@@ -1,12 +1,12 @@
 import React from "react";
 import { View, Text, SafeAreaView } from "react-native";
 
-const HomeScreen = () => {
+const AddEventScreen = () => {
   return (
     <SafeAreaView style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-      <Text>Profile Screen</Text>
+      <Text>Add Event Screen</Text>
     </SafeAreaView>
   );
 };
 
-export default HomeScreen;
+export default AddEventScreen;

@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, Button } from 'react-native';
-import { auth } from '../firebaseConfig';
+import { auth } from '../../firebaseConfig';
 
-export default function HomeScreen({ route, navigation }) {
+export default function ManageEventsScreen({ route, navigation }) {
   const logout = async () => {
     await auth.signOut();
   };

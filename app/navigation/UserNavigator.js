@@ -1,10 +1,9 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
-import { NavigationContainer } from "@react-navigation/native";
-import HomeScreen from "../screens/HomeScreen";
-import ProfileScreen from "../screens/ProfileScreen";
-import AddDonationScreen from "../screens/AddDonationScreen";
+import HomeScreen from "../screens/user/HomeScreen";
+import ProfileScreen from "../screens/user/UserProfileScreen";
+import AddDonationScreen from "../screens/user/AddDonationScreen";
 import ChatScreen from "../screens/ChatScreen";
 
 const Tab = createBottomTabNavigator();

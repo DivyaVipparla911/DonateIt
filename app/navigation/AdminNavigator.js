@@ -1,10 +1,9 @@
 import React from 'react';
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from '@expo/vector-icons';
-import { NavigationContainer } from '@react-navigation/native';
-import AdminHomeScreen from '../screens/AdminHomeScreen';  // Create an Admin Home screen
-import AdminProfileScreen from '../screens/AdminProfileScreen';  // Admin Profile screen
-import ManageUsersScreen from '../screens/ManageUsersScreen';  // Admin screen to manage users
+import ManageEventsScreen from '../screens/admin/ManageEventsScreen';  // Create an Admin Home screen
+import AdminProfileScreen from '../screens/ProfileScreen';  // Admin Profile screen
+import ManageRequestsScreen from '../screens/admin/ManageRequestsScreen';  // Admin screen to manage users
 
 const Tab = createBottomTabNavigator();
 
@@ -14,9 +13,9 @@ const AdminTabNavigator = () => {
         screenOptions={({ route }) => ({
           tabBarIcon: ({ focused, color, size }) => {
             let iconName;
-            if (route.name === 'AdminHome') {
+            if (route.name === 'ManageEvents') {
               iconName = focused ? 'home' : 'home-outline';
-            } else if (route.name === 'ManageUsers') {
+            } else if (route.name === 'ManageRequests') {
               iconName = focused ? 'people' : 'people-outline';
             } else if (route.name === 'AdminProfile') {
               iconName = focused ? 'person' : 'person-outline';
@@ -29,8 +28,8 @@ const AdminTabNavigator = () => {
           headerShown: false,
         })}
       >
-        <Tab.Screen name="AdminHome" component={AdminHomeScreen} />
-        <Tab.Screen name="ManageUsers" component={ManageUsersScreen} />
+        <Tab.Screen name="ManageEvents" component={ManageEventsScreen} />
+        <Tab.Screen name="ManageRequests" component={ManageRequestsScreen} />
         <Tab.Screen name="AdminProfile" component={AdminProfileScreen} />
       </Tab.Navigator>
   );
