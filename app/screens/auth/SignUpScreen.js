@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View, TextInput, Button, Alert } from 'react-native';
+import { View, TextInput, Button, Alert, TouchableOpacity, Text } from 'react-native';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../firebaseConfig';
+import { auth } from '../../firebaseConfig';
 import axios from 'axios';
 
 export default function SignUpScreen({ navigation }) {
@@ -33,6 +33,9 @@ export default function SignUpScreen({ navigation }) {
       <TextInput placeholder="Email" onChangeText={setEmail} value={email} style={{ marginBottom: 10 }} />
       <TextInput placeholder="Password" secureTextEntry onChangeText={setPassword} value={password} style={{ marginBottom: 10 }} />
       <Button title="Sign Up" onPress={handleSignup} />
+      <TouchableOpacity onPress={() => navigation.navigate("SignIn")}>
+                <Text style={{ color: '#007bff' }}>Sign in</Text>
+      </TouchableOpacity>
     </View>
   );
 }

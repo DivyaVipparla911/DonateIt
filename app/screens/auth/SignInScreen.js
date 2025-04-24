@@ -50,7 +50,7 @@
 import React, { useState } from 'react';
 import { View, TextInput, Button, Alert, Text, TouchableOpacity } from 'react-native';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../firebaseConfig';
+import { auth } from '../../firebaseConfig';
 import axios from 'axios';
 
 export default function SignInScreen({ navigation }) {

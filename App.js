@@ -2,10 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { ActivityIndicator, View, Alert } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import SignUpScreen from './app/screens/SignUpScreen';
-import SignInScreen from './app/screens/SignInScreen';
 import UserNavigator from './app/navigation/UserNavigator';
 import AdminNavigator from './app/navigation/AdminNavigator';
+import OrganizerNavigator from './app/navigation/OrganizerNavigator';
 import AuthNavigator from './app/navigation/AuthNavigator';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
@@ -63,6 +62,8 @@ export default function App() {
           <Stack.Screen name="Auth" component={AuthNavigator} />
         ) : userRole === 'admin' ? (
           <Stack.Screen name="AdminNav" component={AdminNavigator} />
+        ) : userRole === 'organizer' ?(
+          <Stack.Screen name="OrganizerNav" component={OrganizerNavigator} />
         ) : (
           <Stack.Screen name="UserNav" component={UserNavigator} />
         )}
