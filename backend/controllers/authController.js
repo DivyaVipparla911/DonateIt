@@ -2,22 +2,41 @@ const admin = require('../firebase/firebaseAdmin');
 const User = require('../models/User');
 
 const signup = async (req, res) => {
-  const { email, password } = req.body;
+  const { token, name, dateOfBirth, address } = req.body;
+
+  const parsedDateOfBirth = new Date(dateOfBirth);
+  if (isNaN(parsedDateOfBirth)) {
+    console.log("Invalid date of birth");
+    return res.status(400).json({ message: 'Invalid date of birth' });
+  }
 
   try {
-    const userRecord = await admin.auth().createUser({ email, password });
+    console.log("saving to firebase");
+    const decodedToken = await admin.auth().verifyIdToken(token);
+    const { uid, email } = decodedToken;
+
+    const existingUser = await User.findOne({ uid });
+    if (existingUser) {
+      return res.status(400).json({ message: 'User already exists in DB' });
+    }
+
     const newUser = new User({
-      uid: userRecord.uid,
-      email: userRecord.email,
+      uid,
+      email,
       user_role: 'user',
+      name: name,
+      dateOfBirth: parsedDateOfBirth,
+      address: address,
     });
 
     await newUser.save();
+    console.log("User saved to MongoDB:", newUser);
     res.status(201).json({ message: 'User created', user: newUser });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
+
 
 const signin = async (req, res) => {
   const { idToken } = req.body;
