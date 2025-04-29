@@ -2,7 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from '@expo/vector-icons';
 import ManageEventsScreen from '../screens/admin/ManageEventsScreen';  // Create an Admin Home screen
-import AdminProfileScreen from '../screens/ProfileScreen';  // Admin Profile screen
+import AdminProfileScreen from '../screens/admin/AdminProfileScreen';  // Admin Profile screen
 import ManageRequestsScreen from '../screens/admin/ManageRequestsScreen';  // Admin screen to manage users
 
 const Tab = createBottomTabNavigator();

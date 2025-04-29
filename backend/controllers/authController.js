@@ -11,7 +11,6 @@ const signup = async (req, res) => {
   }
 
   try {
-    console.log("saving to firebase");
     const decodedToken = await admin.auth().verifyIdToken(token);
     const { uid, email } = decodedToken;
 
