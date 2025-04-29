@@ -33,7 +33,7 @@ export default function App() {
 
   const fetchUserRole = async (userId) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/auth/getUserRole/${userId}`);
+      const response = await fetch(`http://localhost:5000/api/auth/user-role/${userId}`);
       if (!response.ok) {
         throw new Error(`Failed to fetch user role: ${response.statusText}`);
       }

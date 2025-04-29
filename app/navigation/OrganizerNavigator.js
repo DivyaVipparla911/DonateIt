@@ -1,7 +1,7 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
-import ProfileScreen from "../screens/ProfileScreen";
+import ProfileScreen from "../screens/organizer/OrganizerProfileScreen";
 import AddEventScreen from "../screens/organizer/AddEventScreen";
 import ChatScreen from "../screens/ChatScreen";
 

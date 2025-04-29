@@ -7,7 +7,10 @@ export default function HomeScreen({ route, navigation }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState(null); 
-
+  const logout = async () => {
+        await auth.signOut();
+      };
+  
   const fetchEvents = async () => {
     try {
       const response = await axios.get('http://localhost:5000/api/user/events'); 
@@ -63,6 +66,7 @@ export default function HomeScreen({ route, navigation }) {
           contentContainerStyle={{ marginTop: 20 }}
         />
       )}
+       <Button title="Logout" onPress={logout} />
     </View>
   );
 }

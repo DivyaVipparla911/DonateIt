@@ -13,14 +13,12 @@ import { auth } from '../../firebaseConfig';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import axios from 'axios';
 
-
 export default function SignUpScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState(new Date());
   const [showPicker, setShowPicker] = useState(false);
   const [address, setAddress] = useState('');
-  //const [address, setAddress] = useState({ address: '', lat: null, lng: null });
   const [password, setPassword] = useState('');
 
   const handleSignup = async () => {
@@ -105,18 +103,18 @@ export default function SignUpScreen({ navigation }) {
   };
 
   return (
-    <View style={{ padding: 20 }}>
+    <View style={{ padding: 20, paddingTop: 50 }}> 
       <TextInput
         placeholder="Email"
         onChangeText={setEmail}
         value={email}
-        style={{ marginBottom: 10, borderBottomWidth: 1 }}
+        style={{ marginBottom: 10, borderBottomWidth: 1, paddingTop: 10 }} 
       />
       <TextInput
         placeholder="Full Name"
         onChangeText={setName}
         value={name}
-        style={{ marginBottom: 10, borderBottomWidth: 1 }}
+        style={{ marginBottom: 10, borderBottomWidth: 1, paddingTop: 10 }}  
       />
 
       {renderDateInput()}
@@ -125,14 +123,14 @@ export default function SignUpScreen({ navigation }) {
         placeholder="Address"
         onChangeText={setAddress}
         value={address}
-        style={{ marginBottom: 10, borderBottomWidth: 1 }}
+        style={{ marginBottom: 10, borderBottomWidth: 1, paddingTop: 10 }}  
       />
       <TextInput
         placeholder="Password"
         secureTextEntry
         onChangeText={setPassword}
         value={password}
-        style={{ marginBottom: 10, borderBottomWidth: 1 }}
+        style={{ marginBottom: 10, borderBottomWidth: 1, paddingTop: 10 }}  
       />
 
       <Button title="Sign Up" onPress={handleSignup} />
