@@ -9,7 +9,8 @@ import {
   Platform
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { auth } from '../../firebaseConfig';
+import { auth, db } from '../../firebaseConfig';
+import { doc, setDoc } from 'firebase/firestore';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import axios from 'axios';
 
@@ -21,9 +22,11 @@ export default function SignUpScreen({ navigation }) {
   const [address, setAddress] = useState('');
   const [password, setPassword] = useState('');
 
+
   const handleSignup = async () => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
       const token = await userCredential.user.getIdToken();
 
       await axios.post('http://localhost:5000/api/auth/signup', {
@@ -32,6 +35,17 @@ export default function SignUpScreen({ navigation }) {
         dateOfBirth,
         address,
       });
+
+      
+    // Save to Firestore
+    await setDoc(doc(db, 'users', user.uid), {
+      uid: user.uid,
+      email: user.email,
+      name,
+      address,
+      dateOfBirth: dateOfBirth.toISOString().split('T')[0],
+      createdAt: new Date().toISOString(),
+    });
 
       Alert.alert('Success', 'Account created');
       navigation.navigate('SignIn');
