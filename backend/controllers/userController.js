@@ -103,6 +103,23 @@ const getDonations = async (req, res) =>{
   
   }
 }
-  
 
-module.exports = { getUserDetails, addDonation, addEvent, getAllEvents, getDonations };
+const getEvents = async (req, res) =>{
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ message: 'No token provided' });
+  }
+  try{
+    const token = authHeader.split(' ')[1];
+    const decodedToken = await admin.auth().verifyIdToken(token);
+    const { uid, email } = decodedToken;
+    const events = await Event.find({ uid }).sort({ createdAt: -1 });
+    res.status(200).json(events);
+  }catch (err) {
+    console.error('Error fetching events:', err);
+    res.status(500).json({ message: err.message });
+  
+  }
+}
+
+module.exports = { getUserDetails, addDonation, addEvent, getAllEvents, getDonations, getEvents };

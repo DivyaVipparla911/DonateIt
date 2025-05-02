@@ -8,5 +8,4 @@ router.post('/events', addEvent);
 router.get('/events', getAllEvents);
 router.get('/donations', getDonations);
 
-
 module.exports = router;
