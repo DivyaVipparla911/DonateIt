@@ -60,9 +60,9 @@ const AddEventScreen = () => {
         items_accepted: formData.items_accepted,
       };
   
-      await axios.post('http://localhost:5000/api/user/events', payload);
-  
-      Alert.alert('Success', 'Event added successfully!');
+      const response = await axios.post('http://localhost:5000/api/user/events', payload);
+      if(response.status === 201){
+        Alert.alert('Success', 'Event added successfully!');
 
       setFormData({
         name: '',
@@ -71,7 +71,9 @@ const AddEventScreen = () => {
         date: '',
         items_accepted: [],
       });
-      
+    }else {
+      Alert.alert('Error', 'Failed to add event.');
+    }
     } catch (err) {
       console.error('Submission error:', err.response?.data || err.message);
       Alert.alert('Error', 'Failed to add event.');
