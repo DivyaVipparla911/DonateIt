@@ -7,7 +7,8 @@ const donationSchema = new mongoose.Schema({
   description : {type: String, required: true },
   images: { type: [String], required: false},
   address : {type: String, required: true },
-  status : {type: String, required: false },
-});
+  status: { type: String, default: 'pending' }, 
+  assignee: { type: String, required: false }, 
+})
 
 module.exports = mongoose.model('Donation', donationSchema);

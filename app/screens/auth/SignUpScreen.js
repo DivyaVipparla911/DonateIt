@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   TextInput,
@@ -6,7 +6,10 @@ import {
   Alert,
   TouchableOpacity,
   Text,
-  Platform
+  Platform,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  ScrollView,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { auth, db } from '../../firebaseConfig';
@@ -19,38 +22,48 @@ export default function SignUpScreen({ navigation }) {
   const [name, setName] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState(new Date());
   const [showPicker, setShowPicker] = useState(false);
-  const [address, setAddress] = useState('');
   const [password, setPassword] = useState('');
-
+  const [loading, setLoading] = useState(false);
 
   const handleSignup = async () => {
+    if (!email.trim() || !name.trim() || !password.trim()) {
+      Alert.alert('Validation Error', 'Please fill in all required fields.');
+      return;
+    }
+
+    setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
-      const token = await userCredential.user.getIdToken();
+      const token = await user.getIdToken();
 
+      // Send data to backend
       await axios.post('http://localhost:5000/api/auth/signup', {
         token,
         name,
         dateOfBirth,
-        address,
       });
 
-      
-    // Save to Firestore
-    await setDoc(doc(db, 'users', user.uid), {
-      uid: user.uid,
-      email: user.email,
-      name,
-      address,
-      dateOfBirth: dateOfBirth.toISOString().split('T')[0],
-      createdAt: new Date().toISOString(),
-    });
+      // Save to Firestore
+      await setDoc(doc(db, 'users', user.uid), {
+        uid: user.uid,
+        email: user.email,
+        name,
+        dateOfBirth: dateOfBirth.toISOString().split('T')[0],
+        createdAt: new Date().toISOString(),
+      });
 
-      Alert.alert('Success', 'Account created');
-      navigation.navigate('SignIn');
-    } catch (err) {
-      Alert.alert('Error', err.message);
+      Alert.alert('Success', 'Account created successfully.');
+      await signOut(auth); 
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'SignIn' }],
+      });
+            } catch (err) {
+      console.error('Signup error:', err);
+      Alert.alert('Error', err.message || 'Signup failed');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -59,8 +72,8 @@ export default function SignUpScreen({ navigation }) {
 
     if (Platform.OS === 'web') {
       return (
-        <View style={{ marginBottom: 10 }}>
-          <Text>Date of Birth</Text>
+        <View style={{ marginBottom: 15 }}>
+          <Text style={{ marginBottom: 5 }}>Date of Birth</Text>
           <input
             type="date"
             value={formattedDate}
@@ -78,9 +91,11 @@ export default function SignUpScreen({ navigation }) {
     }
 
     return (
-      <View style={{ marginBottom: 10 }}>
+      <View style={{ marginBottom: 15 }}>
         <TouchableOpacity onPress={() => setShowPicker(true)}>
-          <Text>Select Date of Birth: {dateOfBirth.toDateString()}</Text>
+          <Text style={{ marginBottom: 5 }}>
+            Date of Birth: {dateOfBirth.toDateString()}
+          </Text>
         </TouchableOpacity>
         {showPicker && (
           <>
@@ -107,50 +122,56 @@ export default function SignUpScreen({ navigation }) {
     );
   };
 
-  const handlePlaceSelect = (ref, setState) => (data, details = null) => {
-    const address = data.description;
-    const lat = details?.geometry?.location?.lat || null;
-    const lng = details?.geometry?.location?.lng || null;
-    setState({ address, lat, lng });
-    ref.current?.setAddressText(address);
-    ref.current?.blur();
-  };
-
   return (
-    <View style={{ padding: 20, paddingTop: 50 }}> 
-      <TextInput
-        placeholder="Email"
-        onChangeText={setEmail}
-        value={email}
-        style={{ marginBottom: 10, borderBottomWidth: 1, paddingTop: 10 }} 
-      />
-      <TextInput
-        placeholder="Full Name"
-        onChangeText={setName}
-        value={name}
-        style={{ marginBottom: 10, borderBottomWidth: 1, paddingTop: 10 }}  
-      />
+    <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 50 }}>
+        <TextInput
+          placeholder="Email"
+          onChangeText={setEmail}
+          value={email}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          style={{
+            marginBottom: 15,
+            borderBottomWidth: 1,
+            paddingVertical: 10,
+          }}
+        />
+        <TextInput
+          placeholder="Full Name"
+          onChangeText={setName}
+          value={name}
+          style={{
+            marginBottom: 15,
+            borderBottomWidth: 1,
+            paddingVertical: 10,
+          }}
+        />
+        {renderDateInput()}
+        <TextInput
+          placeholder="Password"
+          secureTextEntry
+          onChangeText={setPassword}
+          value={password}
+          style={{
+            marginBottom: 15,
+            borderBottomWidth: 1,
+            paddingVertical: 10,
+          }}
+        />
 
-      {renderDateInput()}
+        {loading ? (
+          <ActivityIndicator size="large" color="#007bff" />
+        ) : (
+          <Button title="Sign Up" onPress={handleSignup} />
+        )}
 
-      <TextInput
-        placeholder="Address"
-        onChangeText={setAddress}
-        value={address}
-        style={{ marginBottom: 10, borderBottomWidth: 1, paddingTop: 10 }}  
-      />
-      <TextInput
-        placeholder="Password"
-        secureTextEntry
-        onChangeText={setPassword}
-        value={password}
-        style={{ marginBottom: 10, borderBottomWidth: 1, paddingTop: 10 }}  
-      />
-
-      <Button title="Sign Up" onPress={handleSignup} />
-      <TouchableOpacity onPress={() => navigation.navigate('SignIn')}>
-        <Text style={{ color: '#007bff', marginTop: 10 }}>Sign in</Text>
-      </TouchableOpacity>
-    </View>
+        <TouchableOpacity onPress={() => navigation.navigate('SignIn')}>
+          <Text style={{ color: '#007bff', marginTop: 15, textAlign: 'center' }}>
+            Already have an account? Sign in
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

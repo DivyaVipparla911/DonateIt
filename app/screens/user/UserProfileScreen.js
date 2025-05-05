@@ -1,34 +1,49 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Alert, ActivityIndicator, Button, FlatList, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  Alert,
+  ActivityIndicator,
+  Button,
+  FlatList,
+  TouchableOpacity,
+  ScrollView,
+  Image,
+  SafeAreaView,
+} from 'react-native';
 import { auth } from '../../firebaseConfig';
 import axios from 'axios';
 
-export default function UserProfileScreen() {
+export default function UserProfileScreen({ navigation }) {
   const [profile, setProfile] = useState(null);
   const [donations, setDonations] = useState([]);
-  const [selectedDonation, setSelectedDonation] = useState(null); 
+  const [selectedDonation, setSelectedDonation] = useState(null);
   const [error, setError] = useState(null);
-   const logout = async () => {
-      await auth.signOut();
-    };
+
+  const logout =  async() => {
+    await auth.signOut();
+  };
 
   useEffect(() => {
     const fetchProfileAndDonations = async () => {
       try {
-        const token = await auth.currentUser.getIdToken();
+        const currentUser = auth.currentUser;
+        const token = await currentUser.getIdToken();
 
-        // Fetch user profile
+        // Fetch profile
         const profileRes = await axios.get('http://localhost:5000/api/user/user-details', {
           headers: { Authorization: `Bearer ${token}` },
         });
         setProfile(profileRes.data);
 
-        // Fetch user donations
+        // Fetch donations
         const donationsRes = await axios.get('http://localhost:5000/api/user/donations', {
           headers: { Authorization: `Bearer ${token}` },
         });
-        setDonations(donationsRes.data);
-
+        const userDonations = donationsRes.data.filter(
+          (donation) => donation.uid === currentUser.uid
+        );
+        setDonations(userDonations);
       } catch (err) {
         const message = err.response?.data?.message || err.message;
         Alert.alert('Error', message);
@@ -39,7 +54,9 @@ export default function UserProfileScreen() {
     fetchProfileAndDonations();
   }, []);
 
-  if (error) return <Text style={{ color: 'red' }}>{error}</Text>;
+  if (error) {
+    return <Text style={{ color: 'red', padding: 20 }}>{error}</Text>;
+  }
 
   if (!profile) {
     return (
@@ -51,33 +68,55 @@ export default function UserProfileScreen() {
 
   const renderDonation = ({ item }) => (
     <TouchableOpacity onPress={() => setSelectedDonation(item)}>
-      <View style={{ padding: 10, marginVertical: 5, backgroundColor: '#f0f0f0' }}>
-        <Text style={{ fontWeight: 'bold' }}>{item.name}</Text>
-        <Text>{item.description}</Text>
-        <Text>Address: {item.address}</Text>
+      <View style={{ padding: 10, marginVertical: 5, backgroundColor: '#f0f0f0', borderRadius: 6 }}>
+        <Text style={{ fontWeight: 'bold' }}>{item.category || 'Untitled'}</Text>
+        <Text numberOfLines={2}>{item.donationDescription}</Text>
       </View>
     </TouchableOpacity>
   );
 
-   if (selectedDonation) {
-      return (
-        <View style={{ padding: 20, flex: 1 }}>
-          <TouchableOpacity onPress={() => setSelectedDonation(null)} style={{ marginBottom: 20 }}>
-            <Text style={{ fontSize: 24 }}>←</Text>
-          </TouchableOpacity>
-          <Text style={{ fontSize: 24, fontWeight: 'bold' }}>{selectedDonation.name}</Text>
-          <Text style={{ marginTop: 10 }}>Description: {selectedDonation.description}</Text>
-          <Button title="Edit"/>
+  if (selectedDonation) {
+    return (
+      <SafeAreaView style={{ flex: 1, padding: 20 }}>
+        <TouchableOpacity onPress={() => setSelectedDonation(null)} style={{ marginBottom: 20 }}>
+          <Text style={{ fontSize: 24 }}>← Back</Text>
+        </TouchableOpacity>
+
+        <Text style={{ fontSize: 24, fontWeight: 'bold' }}>
+          {selectedDonation.category || 'Donation'}
+        </Text>
+        <Text style={{ marginTop: 10 }}>Description: {selectedDonation.description}</Text>
+        <Text style={{ marginTop: 5 }}>Address: {selectedDonation.address}</Text>
+        {selectedDonation.images?.length > 0 && (
+          <ScrollView horizontal style={{ marginTop: 15 }}>
+            {selectedDonation.images.map((photoUrl, idx) => (
+              <Image
+                key={idx}
+                source={{ uri: photoUrl }}
+                style={{ width: 100, height: 100, marginRight: 10, borderRadius: 5 }}
+              />
+            ))}
+          </ScrollView>
+        )}
+
+        <View style={{ marginTop: 20 }}>
+          <Button title="Edit" onPress={() => {
+            // navigation.navigate('EditDonationScreen', { donation: selectedDonation });
+            Alert.alert('Coming soon', 'Edit functionality not implemented yet.');
+          }} />
         </View>
-      );
-    }
+      </SafeAreaView>
+    );
+  }
 
   return (
-    <View style={{ padding: 20 }}>
+    <SafeAreaView style={{ flex: 1, padding: 20 }}>
       <Text>Email: {profile.email}</Text>
-      <Text>Name: {profile.name}</Text>
-      <Text>Date of Birth: {new Date(profile.dateOfBirth).toDateString()}</Text>
-      <Text>Address: {profile.address}</Text>
+      <Text>Name: {profile.name || 'N/A'}</Text>
+      <Text>
+        Date of Birth:{' '}
+        {profile.dateOfBirth ? new Date(profile.dateOfBirth).toDateString() : 'N/A'}
+      </Text>
 
       <Text style={{ marginTop: 20, fontWeight: 'bold', fontSize: 16 }}>Your Donations:</Text>
       {donations.length === 0 ? (
@@ -91,7 +130,9 @@ export default function UserProfileScreen() {
         />
       )}
 
-      <Button title="Logout" onPress={logout} />
-    </View>
+      <View style={{ marginTop: 30 }}>
+        <Button title="Logout" onPress={logout} color="#cc0000" />
+      </View>
+    </SafeAreaView>
   );
 }

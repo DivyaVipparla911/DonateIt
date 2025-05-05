@@ -30,7 +30,6 @@ const getUserDetails = async (req, res) => {
 
 const addDonation = async (req, res) =>{
   const { token,
-    donorName,
     donationCategory,
     donationDescription,
     donorAddress,
@@ -39,9 +38,10 @@ const addDonation = async (req, res) =>{
     console.log("adding donation");
       const decodedToken = await admin.auth().verifyIdToken(token);
       const { uid, email } = decodedToken;
+      const user = await User.findOne({ uid: decodedToken.uid });
       const newDonation = new Donation({
             uid,
-            name: donorName,
+            name: user.name,
             category: donationCategory,
             description: donationDescription,
             address: donorAddress,
@@ -86,6 +86,15 @@ const getAllEvents = async (req, res) =>{
   }
 }
 
+const getAllDonations = async (req, res) =>{
+  try {
+    const donations = await Donation.find({});
+    res.status(200).json(donations);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+}
+
 const getDonations = async (req, res) =>{
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -122,4 +131,4 @@ const getEvents = async (req, res) =>{
   }
 }
 
-module.exports = { getUserDetails, addDonation, addEvent, getAllEvents, getDonations, getEvents };
+module.exports = { getUserDetails, addDonation, addEvent, getAllEvents, getDonations, getEvents, getAllDonations };
