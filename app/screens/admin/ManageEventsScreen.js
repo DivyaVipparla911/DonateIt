@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Button, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { auth } from '../../firebaseConfig';
 import axios from 'axios';
 
 export default function HomeScreen({ route, navigation }) {
@@ -11,7 +10,7 @@ export default function HomeScreen({ route, navigation }) {
   const fetchEvents = async () => {
     try {
       const response = await axios.get('http://localhost:5000/api/user/events'); 
-      const data = await response.data;
+      const data = response.data;
       setEvents(data);
     } catch (error) {
       console.error('Error fetching events:', error);
@@ -23,6 +22,16 @@ export default function HomeScreen({ route, navigation }) {
   useEffect(() => {
     fetchEvents();
   }, []);
+
+  const deleteEvent = async () => {
+    try {
+      await axios.delete(`http://localhost:5000/api/admin/events/${selectedEvent._id}`);
+      setSelectedEvent(null);
+      fetchEvents(); 
+    } catch (error) {
+      console.error('Error deleting event:', error);
+    }
+  };
 
   const renderEvent = ({ item }) => (
     <TouchableOpacity onPress={() => setSelectedEvent(item)}>
@@ -45,7 +54,7 @@ export default function HomeScreen({ route, navigation }) {
         <Text style={{ marginTop: 10 }}>Description: {selectedEvent.description}</Text>
         <Text>Date: {new Date(selectedEvent.date).toLocaleDateString()}</Text>
         <Text>Location: {selectedEvent.location}</Text>
-        <Button title="Chat with Organizer"/>
+        <Button title="Delete" color="red" onPress={deleteEvent} />
       </View>
     );
   }

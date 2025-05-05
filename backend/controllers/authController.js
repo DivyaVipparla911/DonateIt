@@ -25,7 +25,6 @@ const signup = async (req, res) => {
       user_role: 'user',
       name: name,
       dateOfBirth: parsedDateOfBirth,
-      address: address,
     });
 
     await newUser.save();
