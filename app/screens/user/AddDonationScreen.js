@@ -14,17 +14,14 @@ import {
 import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import axios from 'axios';
-import { auth, storage } from '../../firebaseConfig'; 
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { auth } from '../../firebaseConfig'; 
 
 const DonationForm = () => {
-  // Form state
   const [donationCategory, setDonationCategory] = useState('groceries');
   const [donationDescription, setDonationDescription] = useState('');
   const [donorAddress, setDonorAddress] = useState('');
   const [donationPhotos, setDonationPhotos] = useState([]);
   
-  // UI state
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({
     description: '',
@@ -80,7 +77,7 @@ const DonationForm = () => {
   const handleChoosePhotos = Platform.select({
     ios: handleChoosePhotosMobile,
     android: handleChoosePhotosMobile,
-    web: () => document.getElementById('fileInput').click(), // Trigger file input for web
+    web: () => document.getElementById('fileInput').click(), 
   });
 
   // Handle file change for web
@@ -121,7 +118,7 @@ const DonationForm = () => {
     const data = new FormData();
    
   if (Platform.OS === 'web') {
-    data.append('file', photo); // File object directly
+    data.append('file', photo); 
   } else {
     data.append('file', {
       uri: photo,
@@ -130,7 +127,7 @@ const DonationForm = () => {
     });
   }
     data.append('upload_preset', 'donations_preset'); 
-    data.append('cloud_name', 'do0u4ae7b'); // replace with actual cloud name
+    data.append('cloud_name', 'do0u4ae7b'); 
   
     try {
       const res = await fetch('https://api.cloudinary.com/v1_1/do0u4ae7b/image/upload', {
@@ -138,7 +135,7 @@ const DonationForm = () => {
         body: data,
       });
       const result = await res.json();
-      return result.secure_url; // Cloudinary-hosted image URL
+      return result.secure_url; 
     } catch (error) {
       console.error('Cloudinary upload failed:', error);
       throw error;
@@ -266,7 +263,7 @@ const DonationForm = () => {
               setErrors(prev => ({...prev, address: ''}));
             }
           }}
-          placeholder="Enter your address"
+          placeholder="Enter the pickup address"
           style={{ 
             height: 50, 
             borderColor: errors.address ? '#ff0000' : '#ccc', 

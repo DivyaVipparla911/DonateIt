@@ -46,8 +46,6 @@ export default function AdminProfileScreen() {
     <View style={{ padding: 20 }}>
       <Text>Email: {profile.email}</Text>
       <Text>Name: {profile.name}</Text>
-      <Text>Date of Birth: {new Date(profile.dateOfBirth).toDateString()}</Text>
-      <Text>Address: {profile.address}</Text>
       <Button title="Logout" onPress={logout} />
     </View>
   );

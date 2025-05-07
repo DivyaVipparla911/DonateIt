@@ -2,6 +2,7 @@ const admin = require('../firebase/firebaseAdmin');
 const User = require('../models/User');
 const Donation = require('../models/Donation');
 const Event = require('../models/Event');
+const sendUpdateEmail = require('../utils/sendEmail');
 
 const deleteEvents = async (req, res) =>{
     const { id } = req.params;
@@ -35,17 +36,23 @@ try {
 
 const editDonations = async (req, res) => {
   const { id } = req.params;
-  const { name, description, address, status, assignee } = req.body;
+  const { name, description, address, status, assignee, dateTime } = req.body;
 
   try {
     const updatedDonation = await Donation.findByIdAndUpdate(
       id,
-      { name, description, address, status, assignee },
-      { new: true }
+      { name, description, address, status, assignee, dateTime },
+      { new: true } 
     );
 
     if (!updatedDonation) {
       return res.status(404).json({ message: 'Donation not found' });
+    }
+
+    console.log(updatedDonation.email);
+
+    if (updatedDonation?.email) {
+      sendUpdateEmail(updatedDonation.email, updatedDonation);
     }
 
     res.status(200).json({ message: 'Donation updated successfully', donation: updatedDonation });

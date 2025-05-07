@@ -82,8 +82,6 @@ export default function OrganizerProfileScreen() {
     <View style={{ padding: 20 }}>
       <Text>Email: {profile.email}</Text>
       <Text>Name: {profile.name}</Text>
-      <Text>Date of Birth: {new Date(profile.dateOfBirth).toDateString()}</Text>
-      <Text>Address: {profile.address}</Text>
       <Text style={{ marginTop: 20, fontWeight: 'bold', fontSize: 16 }}>Your Events:</Text>
             {events.length === 0 ? (
               <Text style={{ marginTop: 10 }}>No events posted yet.</Text>

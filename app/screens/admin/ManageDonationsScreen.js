@@ -34,13 +34,6 @@ export default function HomeScreen() {
     fetchDonations();
   }, []);
 
-  const confirmDelete = () => {
-    Alert.alert('Confirm Delete', 'Are you sure you want to delete this donation?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', onPress: deleteDonation, style: 'destructive' },
-    ]);
-  };
-
   const deleteDonation = async () => {
     try {
       await axios.delete(`http://localhost:5000/api/admin/donations/${selectedDonation._id}`);
@@ -74,6 +67,8 @@ export default function HomeScreen() {
         <Text>Location: {item.location || item.address}</Text>
         <Text>Status: {item.status || 'N/A'}</Text>
         <Text>Assignee: {item.assignee || 'Unassigned'}</Text>
+        <Text>Pickup Date and Time: {item.dateTime || 'Unassigned'}</Text>
+
       </View>
     </TouchableOpacity>
   );
@@ -120,6 +115,14 @@ export default function HomeScreen() {
             style={{ borderWidth: 1, padding: 8, marginBottom: 20 }}
           />
 
+         <TextInput
+            placeholder="Date and Time"
+            value={editedDonation.dateTime}
+            onChangeText={(text) =>
+              setEditedDonation({ ...editedDonation, dateTime: text })
+            }
+            style={{ borderWidth: 1, padding: 8, marginBottom: 20 }}
+          />
           <Button title="Save Changes" onPress={handleSave} />
         </View>
       );
@@ -145,11 +148,12 @@ export default function HomeScreen() {
               setEditedDonation({
                 status: selectedDonation.status || '',
                 assignee: selectedDonation.assignee || '',
+                dateTime: selectedDonation.dateTime || '',
               });
             }}
           />
           <View style={{ marginTop: 10 }}>
-            <Button title="Delete" color="red" onPress={confirmDelete} />
+            <Button title="Delete" color="red" onPress={deleteDonation} />
           </View>
         </View>
       </View>

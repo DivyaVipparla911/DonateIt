@@ -113,10 +113,6 @@ export default function UserProfileScreen({ navigation }) {
     <SafeAreaView style={{ flex: 1, padding: 20 }}>
       <Text>Email: {profile.email}</Text>
       <Text>Name: {profile.name || 'N/A'}</Text>
-      <Text>
-        Date of Birth:{' '}
-        {profile.dateOfBirth ? new Date(profile.dateOfBirth).toDateString() : 'N/A'}
-      </Text>
 
       <Text style={{ marginTop: 20, fontWeight: 'bold', fontSize: 16 }}>Your Donations:</Text>
       {donations.length === 0 ? (

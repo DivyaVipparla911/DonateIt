@@ -2,13 +2,7 @@ const admin = require('../firebase/firebaseAdmin');
 const User = require('../models/User');
 
 const signup = async (req, res) => {
-  const { token, name, dateOfBirth, address } = req.body;
-
-  const parsedDateOfBirth = new Date(dateOfBirth);
-  if (isNaN(parsedDateOfBirth)) {
-    console.log("Invalid date of birth");
-    return res.status(400).json({ message: 'Invalid date of birth' });
-  }
+  const { token, name} = req.body;
 
   try {
     const decodedToken = await admin.auth().verifyIdToken(token);
@@ -24,11 +18,9 @@ const signup = async (req, res) => {
       email,
       user_role: 'user',
       name: name,
-      dateOfBirth: parsedDateOfBirth,
     });
 
     await newUser.save();
-    console.log("User saved to MongoDB:", newUser);
     res.status(201).json({ message: 'User created', user: newUser });
   } catch (err) {
     res.status(500).json({ message: err.message });

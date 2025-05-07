@@ -14,7 +14,7 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { auth, db } from '../../firebaseConfig';
 import { doc, setDoc } from 'firebase/firestore';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
 import axios from 'axios';
 
 export default function SignUpScreen({ navigation }) {
@@ -36,90 +36,34 @@ export default function SignUpScreen({ navigation }) {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       const token = await user.getIdToken();
-
-      // Send data to backend
+    
+      // Send user info to backend
       await axios.post('http://localhost:5000/api/auth/signup', {
         token,
         name,
-        dateOfBirth,
       });
-
+    
       // Save to Firestore
       await setDoc(doc(db, 'users', user.uid), {
         uid: user.uid,
         email: user.email,
         name,
-        dateOfBirth: dateOfBirth.toISOString().split('T')[0],
         createdAt: new Date().toISOString(),
       });
-
-      Alert.alert('Success', 'Account created successfully.');
-      await signOut(auth); 
+    
+      Alert.alert('Success', 'Account created. Please sign in.');
       navigation.reset({
         index: 0,
         routes: [{ name: 'SignIn' }],
       });
-            } catch (err) {
+      
+    
+    } catch (err) {
       console.error('Signup error:', err);
-      Alert.alert('Error', err.message || 'Signup failed');
+      Alert.alert('Error', err.message || 'Signup failed');    
     } finally {
       setLoading(false);
     }
-  };
-
-  const renderDateInput = () => {
-    const formattedDate = dateOfBirth.toISOString().split('T')[0];
-
-    if (Platform.OS === 'web') {
-      return (
-        <View style={{ marginBottom: 15 }}>
-          <Text style={{ marginBottom: 5 }}>Date of Birth</Text>
-          <input
-            type="date"
-            value={formattedDate}
-            onChange={(e) => setDateOfBirth(new Date(e.target.value))}
-            style={{
-              padding: 10,
-              borderWidth: 1,
-              borderColor: '#ccc',
-              borderRadius: 5,
-              width: '100%',
-            }}
-          />
-        </View>
-      );
-    }
-
-    return (
-      <View style={{ marginBottom: 15 }}>
-        <TouchableOpacity onPress={() => setShowPicker(true)}>
-          <Text style={{ marginBottom: 5 }}>
-            Date of Birth: {dateOfBirth.toDateString()}
-          </Text>
-        </TouchableOpacity>
-        {showPicker && (
-          <>
-            <DateTimePicker
-              value={dateOfBirth}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={(event, selectedDate) => {
-                if (Platform.OS === 'android') {
-                  setShowPicker(false);
-                }
-                if (selectedDate) {
-                  setDateOfBirth(selectedDate);
-                }
-              }}
-              maximumDate={new Date()}
-            />
-            {Platform.OS === 'ios' && (
-              <Button title="Done" onPress={() => setShowPicker(false)} />
-            )}
-          </>
-        )}
-      </View>
-    );
   };
 
   return (
@@ -147,7 +91,6 @@ export default function SignUpScreen({ navigation }) {
             paddingVertical: 10,
           }}
         />
-        {renderDateInput()}
         <TextInput
           placeholder="Password"
           secureTextEntry

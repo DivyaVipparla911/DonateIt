@@ -2,6 +2,7 @@ const admin = require('../firebase/firebaseAdmin');
 const Donation = require('../models/Donation');
 const Event = require('../models/Event');
 const User = require('../models/User');
+const DonationBox = require('../models/DonationBox');
 
 const getUserDetails = async (req, res) => {
   try {
@@ -41,6 +42,7 @@ const addDonation = async (req, res) =>{
       const user = await User.findOne({ uid: decodedToken.uid });
       const newDonation = new Donation({
             uid,
+            email: user.email,
             name: user.name,
             category: donationCategory,
             description: donationDescription,
@@ -131,4 +133,10 @@ const getEvents = async (req, res) =>{
   }
 }
 
-module.exports = { getUserDetails, addDonation, addEvent, getAllEvents, getDonations, getEvents, getAllDonations };
+const getDonationBoxes = async (req, res) =>{
+  const boxes = await DonationBox.find();
+  res.json(boxes);
+}
+
+
+module.exports = { getUserDetails, addDonation, addEvent, getAllEvents, getDonations, getEvents, getAllDonations, getDonationBoxes };
