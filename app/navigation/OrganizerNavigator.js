@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import ProfileScreen from "../screens/organizer/OrganizerProfileScreen";
 import AddEventScreen from "../screens/organizer/AddEventScreen";
 import ChatScreen from "../screens/ChatScreen";
+import ChatNavigator from "./ChatNavigator";
 
 const Tab = createBottomTabNavigator();
 
@@ -29,7 +30,7 @@ const BottomTabNavigator = () => {
       })}
     >
       <Tab.Screen name="Add" component={AddEventScreen} />
-      <Tab.Screen name="Chat" component={ChatScreen} />
+      <Tab.Screen name="Chat" component={ChatNavigator} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );

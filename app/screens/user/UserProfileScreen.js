@@ -98,13 +98,6 @@ export default function UserProfileScreen({ navigation }) {
             ))}
           </ScrollView>
         )}
-
-        <View style={{ marginTop: 20 }}>
-          <Button title="Edit" onPress={() => {
-            // navigation.navigate('EditDonationScreen', { donation: selectedDonation });
-            Alert.alert('Coming soon', 'Edit functionality not implemented yet.');
-          }} />
-        </View>
       </SafeAreaView>
     );
   }

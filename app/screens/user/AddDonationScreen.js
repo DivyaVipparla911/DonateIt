@@ -1,384 +1,234 @@
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  Button, 
-  Alert, 
-  Image, 
-  TouchableOpacity, 
-  ScrollView, 
+import {
+  View,
+  Text,
+  TextInput,
+  Alert,
+  Image,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
+  StyleSheet,
   Platform,
-  ActivityIndicator 
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import axios from 'axios';
-import { auth } from '../../firebaseConfig'; 
+import { auth, storage } from '../../firebaseConfig';
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
-const DonationForm = () => {
-  const [donationCategory, setDonationCategory] = useState('groceries');
-  const [donationDescription, setDonationDescription] = useState('');
-  const [donorAddress, setDonorAddress] = useState('');
-  const [donationPhotos, setDonationPhotos] = useState([]);
-  
-  const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState({
-    description: '',
-    address: '',
-    photos: ''
-  });
+const AddDonationScreen = () => {
+  const [category, setCategory] = useState('groceries');
+  const [description, setDescription] = useState('');
+  const [address, setAddress] = useState('');
+  const [photos, setPhotos] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  // Request permission for image picker
-  const requestPermissions = async () => {
-    if (Platform.OS !== 'web') {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'We need access to your photos to select images.');
-        return false;
-      }
-    }
-    return true;
-  };
-
-  // Handle image picker for mobile
-  const handleChoosePhotosMobile = async () => {
-    const hasPermission = await requestPermissions();
-    if (!hasPermission) return;
-
-    try {
-      // Launch the image picker
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaType: ImagePicker.MediaTypeOptions.Images,
-        quality: 0.5,
-        allowsMultipleSelection: true,
-        selectionLimit: 5,
-      });
-
-      if (!result.canceled) {
-        const selectedPhotos = result.assets.map((asset) => asset.uri);
-        
-        // Validate photo count
-        if (selectedPhotos.length > 5) {
-          setErrors(prev => ({...prev, photos: 'Maximum 5 photos allowed'}));
-          return;
-        }
-        
-        setDonationPhotos(selectedPhotos);
-        setErrors(prev => ({...prev, photos: ''}));
-      }
-    } catch (error) {
-      console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to select photos. Please try again.');
-    }
-  };
-
-  // Handle image picker based on platform
-  const handleChoosePhotos = Platform.select({
-    ios: handleChoosePhotosMobile,
-    android: handleChoosePhotosMobile,
-    web: () => document.getElementById('fileInput').click(), 
-  });
-
-  // Handle file change for web
-  const handleFileChange = async (event) => {
-    const files = event.target.files;
-    
-    // Validate photo count
-    if (files.length > 5) {
-      setErrors(prev => ({...prev, photos: 'Maximum 5 photos allowed'}));
+  const pickImages = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission required', 'We need permission to access your photos.');
       return;
     }
-    
-    const fileArray = Array.from(files);
-    setDonationPhotos(fileArray);
-    setErrors(prev => ({...prev, photos: ''}));
-  };
 
-  // Validate form fields
-  const validateForm = () => {
-    let isValid = true;
-    const newErrors = { description: '', address: '', photos: '' };
-    
-    if (!donationDescription.trim()) {
-      newErrors.description = 'Description is required';
-      isValid = false;
-    }
-    
-    if (!donorAddress.trim()) {
-      newErrors.address = 'Address is required';
-      isValid = false;
-    }
-    
-    setErrors(newErrors);
-    return isValid;
-  };
-
-  const uploadToCloudinary = async (photo) => {
-    const data = new FormData();
-   
-  if (Platform.OS === 'web') {
-    data.append('file', photo); 
-  } else {
-    data.append('file', {
-      uri: photo,
-      name: 'donation.jpg',
-      type: 'image/jpeg',
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      quality: 0.7,
     });
-  }
-    data.append('upload_preset', 'donations_preset'); 
-    data.append('cloud_name', 'do0u4ae7b'); 
-  
-    try {
-      const res = await fetch('https://api.cloudinary.com/v1_1/do0u4ae7b/image/upload', {
-        method: 'POST',
-        body: data,
-      });
-      const result = await res.json();
-      return result.secure_url; 
-    } catch (error) {
-      console.error('Cloudinary upload failed:', error);
-      throw error;
+
+    if (!result.canceled) {
+      const selected = result.assets.slice(0, 5 - photos.length);
+      setPhotos([...photos, ...selected]);
     }
   };
-  
 
   const handleSubmit = async () => {
-    if (!validateForm()) {
+    if (!description || !address || photos.length === 0) {
+      Alert.alert('Validation', 'Please fill in all required fields and upload at least one photo.');
       return;
     }
-    
-    const user = auth.currentUser;
-    
-    if (!user) {
-      Alert.alert('Authentication Error', 'You must be logged in to submit a donation.');
-      return;
-    }
-    
-    setIsLoading(true);
-    
+
+    setLoading(true);
+
     try {
-      const token = await user.getIdToken();
       const uploadedUrls = [];
-      for (const photo of donationPhotos) {
-        const url = await uploadToCloudinary(photo);
-        uploadedUrls.push(url);
+      for (const photo of photos) {
+        const imgRef = ref(storage, `donations/${Date.now()}_${photo.fileName || 'image.jpg'}`);
+        const img = await fetch(photo.uri);
+        const blob = await img.blob();
+        await uploadBytes(imgRef, blob);
+        const downloadURL = await getDownloadURL(imgRef);
+        uploadedUrls.push(downloadURL);
       }
-      console.log("uploadedUrls", uploadedUrls);
-      const donationData = {
+
+      const token = await auth.currentUser.getIdToken();
+      await axios.post('http://localhost:5000/api/user/donations', {
+        category,
+        description,
+        address,
+        photos: uploadedUrls,
         token,
-        donationCategory,
-        donationDescription,
-        donorAddress,
-        donationPhotos: uploadedUrls,
-      };
-      
-      const response = await axios.post('http://localhost:5000/api/user/donations', donationData);
-      
-      setIsLoading(false);
-      Alert.alert('Success', 'Donation added successfully!');
-      
-      // Reset form
-      setDonationCategory('groceries');
-      setDonationDescription('');
-      setDonorAddress('');
-      setDonationPhotos([]);
-      
+      });
+
+      Alert.alert('Success', 'Donation submitted!');
+      setCategory('groceries');
+      setDescription('');
+      setAddress('');
+      setPhotos([]);
     } catch (error) {
-      setIsLoading(false);
-      console.error('Error submitting donation:', error);
-      
-      // Enhanced error handling
-      const errorMessage = error.response?.data?.message || 
-                          'Failed to submit donation. Please check your connection and try again.';
-      
-      Alert.alert('Submission Error', errorMessage);
+      console.error(error);
+      Alert.alert('Error', 'Failed to submit donation.');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <ScrollView>
-      <View style={{ flex: 1, padding: 20, backgroundColor: '#f4f4f4' }}>
-        <Text style={{ fontSize: 24, textAlign: 'center', marginBottom: 20, fontWeight: 'bold' }}>
-          Donate Items
-        </Text>
+    <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.title}>Donate Items</Text>
 
-        {/* Category selection */}
-        <Text style={{ fontWeight: '500', marginBottom: 5 }}>Category *</Text>
+      <Text style={styles.label}>Category *</Text>
+      <View style={styles.pickerContainer}>
         <Picker
-          selectedValue={donationCategory}
-          onValueChange={setDonationCategory}
-          style={{ 
-            height: 50, 
-            borderColor: '#ccc', 
-            borderWidth: 1, 
-            marginBottom: 15,
-            backgroundColor: '#fff',
-            borderRadius: 5 
-          }}
+          selectedValue={category}
+          onValueChange={(value) => setCategory(value)}
+          style={styles.picker}
         >
           <Picker.Item label="Groceries" value="groceries" />
-          <Picker.Item label="Clothing" value="clothing" />
-          <Picker.Item label="Furniture" value="furniture" />
-          <Picker.Item label="Others" value="others" />
+          <Picker.Item label="Clothes" value="clothes" />
+          <Picker.Item label="Books" value="books" />
+          <Picker.Item label="Electronics" value="electronics" />
         </Picker>
-
-        {/* Description input */}
-        <Text style={{ fontWeight: '500', marginBottom: 5 }}>Description *</Text>
-        <TextInput
-          value={donationDescription}
-          onChangeText={(text) => {
-            setDonationDescription(text);
-            if (text.trim()) {
-              setErrors(prev => ({...prev, description: ''}));
-            }
-          }}
-          placeholder="Describe the items you're donating"
-          multiline
-          style={{ 
-            minHeight: 80, 
-            borderColor: errors.description ? '#ff0000' : '#ccc', 
-            borderWidth: 1, 
-            marginBottom: errors.description ? 5 : 15, 
-            paddingLeft: 10,
-            paddingRight: 10,
-            paddingTop: 8,
-            paddingBottom: 8,
-            backgroundColor: '#fff',
-            borderRadius: 5,
-            textAlignVertical: 'top'
-          }}
-        />
-        {errors.description ? (
-          <Text style={{ color: 'red', marginBottom: 10 }}>{errors.description}</Text>
-        ) : null}
-
-        {/* Address input */}
-        <Text style={{ fontWeight: '500', marginBottom: 5 }}>Address *</Text>
-        <TextInput
-          value={donorAddress}
-          onChangeText={(text) => {
-            setDonorAddress(text);
-            if (text.trim()) {
-              setErrors(prev => ({...prev, address: ''}));
-            }
-          }}
-          placeholder="Enter the pickup address"
-          style={{ 
-            height: 50, 
-            borderColor: errors.address ? '#ff0000' : '#ccc', 
-            borderWidth: 1, 
-            marginBottom: errors.address ? 5 : 15, 
-            paddingLeft: 10,
-            paddingRight: 10,
-            backgroundColor: '#fff',
-            borderRadius: 5
-          }}
-        />
-        {errors.address ? (
-          <Text style={{ color: 'red', marginBottom: 10 }}>{errors.address}</Text>
-        ) : null}
-
-        {/* Photo upload */}
-        <View style={{ marginBottom: 20 }}>
-          <TouchableOpacity 
-            onPress={handleChoosePhotos} 
-            style={{ 
-              backgroundColor: '#007BFF', 
-              padding: 12, 
-              borderRadius: 5,
-              alignItems: 'center',
-              marginBottom: 10 
-            }}
-          >
-            <Text style={{ color: '#fff', fontWeight: '500' }}>
-              Upload Donation Photos (Max 5)
-            </Text>
-          </TouchableOpacity>
-          
-          {errors.photos ? (
-            <Text style={{ color: 'red', marginBottom: 10 }}>{errors.photos}</Text>
-          ) : null}
-
-          {/* File input for web */}
-          {Platform.OS === 'web' && (
-            <input
-              type="file"
-              id="fileInput"
-              multiple
-              accept="image/*"
-              onChange={handleFileChange}
-              style={{ display: 'none' }}
-            />
-          )}
-        </View>
-
-        {/* Photo preview */}
-        <Text style={{ fontWeight: '500', marginBottom: 10 }}>
-          {donationPhotos.length > 0 ? 'Selected Photos:' : 'No photos selected yet'}
-        </Text>
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false} 
-          style={{ marginBottom: 25 }}
-        >
-          {donationPhotos.map((photoUri, index) => (
-            <View key={index} style={{ marginRight: 10 }}>
-              <Image 
-                source={{ uri: photoUri }} 
-                style={{ 
-                  width: 100, 
-                  height: 100, 
-                  borderRadius: 5,
-                  borderWidth: 1,
-                  borderColor: '#ddd' 
-                }} 
-              />
-              <TouchableOpacity 
-                onPress={() => {
-                  const updatedPhotos = [...donationPhotos];
-                  updatedPhotos.splice(index, 1);
-                  setDonationPhotos(updatedPhotos);
-                }}
-                style={{
-                  position: 'absolute',
-                  top: -5,
-                  right: -5,
-                  backgroundColor: '#ff0000',
-                  borderRadius: 10,
-                  width: 20,
-                  height: 20,
-                  justifyContent: 'center',
-                  alignItems: 'center'
-                }}
-              >
-                <Text style={{ color: '#fff', fontSize: 12, fontWeight: 'bold' }}>X</Text>
-              </TouchableOpacity>
-            </View>
-          ))}
-        </ScrollView>
-
-        {/* Submit button */}
-        {isLoading ? (
-          <View style={{ alignItems: 'center', marginBottom: 20 }}>
-            <ActivityIndicator size="large" color="#007BFF" />
-            <Text style={{ marginTop: 10 }}>Submitting donation...</Text>
-          </View>
-        ) : (
-          <Button 
-            title="Add Donation" 
-            onPress={handleSubmit} 
-            color="#007BFF"
-          />
-        )}
-        
-        {/* Required fields notice */}
-        <Text style={{ marginTop: 15, color: '#666', textAlign: 'center' }}>
-          * Required fields
-        </Text>
       </View>
+
+      <Text style={styles.label}>Description *</Text>
+      <TextInput
+        style={styles.input}
+        value={description}
+        onChangeText={setDescription}
+        placeholder="Describe the items you're donating"
+        multiline
+      />
+
+      <Text style={styles.label}>Address *</Text>
+      <TextInput
+        style={styles.input}
+        value={address}
+        onChangeText={setAddress}
+        placeholder="Enter your address"
+      />
+
+      <TouchableOpacity style={styles.uploadButton} onPress={pickImages}>
+        <Text style={styles.uploadButtonText}>Upload Donation Photos (Max 5)</Text>
+      </TouchableOpacity>
+
+      {photos.length > 0 ? (
+        <View style={styles.photoPreview}>
+          {photos.map((photo, index) => (
+            <Image key={index} source={{ uri: photo.uri }} style={styles.photo} />
+          ))}
+        </View>
+      ) : (
+        <Text style={styles.noPhotos}>No photos selected yet</Text>
+      )}
+
+      <TouchableOpacity style={styles.submitButton} onPress={handleSubmit} disabled={loading}>
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.submitButtonText}>ADD DONATION</Text>
+        )}
+      </TouchableOpacity>
+
+      <Text style={styles.footer}>* Required fields</Text>
     </ScrollView>
   );
 };
 
-export default DonationForm;
+const styles = StyleSheet.create({
+  container: {
+    padding: 20,
+    backgroundColor: '#f9f9f9',
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 20,
+    color: '#111',
+  },
+  label: {
+    fontWeight: '600',
+    marginBottom: 6,
+    color: '#222',
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 10,
+    marginBottom: 16,
+    backgroundColor: '#fff',
+  },
+  picker: {
+    height: 48,
+    width: '100%',
+  },
+  input: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    borderColor: '#ccc',
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 15,
+    marginBottom: 16,
+  },
+  uploadButton: {
+    backgroundColor: '#2b7de9',
+    padding: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  uploadButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  photoPreview: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 12,
+  },
+  photo: {
+    width: 80,
+    height: 80,
+    marginRight: 8,
+    borderRadius: 8,
+  },
+  noPhotos: {
+    fontStyle: 'italic',
+    color: '#666',
+    marginBottom: 10,
+  },
+  submitButton: {
+    backgroundColor: '#2b7de9',
+    padding: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  submitButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  footer: {
+    marginTop: 10,
+    fontSize: 12,
+    color: '#888',
+    textAlign: 'center',
+  },
+});
+
+export default AddDonationScreen;
