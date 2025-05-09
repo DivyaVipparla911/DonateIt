@@ -26,6 +26,29 @@ Pickup Date and Time: ${donation.dateTime}
 Thank you for your contribution!
     `,
   };
+};
+
+  const sendDeleteEmail = (toEmail, donation) => {
+    console.log("here");
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: toEmail,
+      subject: 'Your Donation Has Been Updated',
+      text: `
+  Hi,
+  
+  Your donation "${donation.name}" has been updated.
+  
+  Status: ${donation.status}
+  Assignee: ${donation.assignee}
+  Pickup Date and Time: ${donation.dateTime}
+  
+  Thank you for your contribution!
+      `,
+    };
+  };
+
+
 
   transporter.sendMail(mailOptions, (error, info) => {
     if (error) {
@@ -34,6 +57,6 @@ Thank you for your contribution!
       console.log('Email sent:', info.response);
     }
   });
-};
 
-module.exports = sendUpdateEmail;
+
+module.exports ={sendUpdateEmail, sendDeleteEmail} ;
