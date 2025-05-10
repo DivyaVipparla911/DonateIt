@@ -113,9 +113,9 @@ const ChatScreen = ({ route, navigation }) => {
       keyboardVerticalOffset={90}
     >
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleBackToList} style={styles.backButton}>
+        {/* <TouchableOpacity onPress={handleBackToList} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#007AFF" />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
         <View style={styles.headerTextContainer}>
           <Text style={styles.headerTitle}>{eventName}</Text>
           <Text style={styles.headerSubtitle}>Chat with {otherUserName}</Text>

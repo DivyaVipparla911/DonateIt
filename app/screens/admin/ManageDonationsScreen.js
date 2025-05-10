@@ -36,7 +36,9 @@ export default function HomeScreen() {
 
   const deleteDonation = async () => {
     try {
-      await axios.delete(`http://localhost:5000/api/admin/donations/${selectedDonation._id}`);
+      await axios.delete(`http://localhost:5000/api/admin/donations/${selectedDonation._id}`,
+        selectedDonation
+      );
       setSelectedDonation(null);
       setEditMode(false);
       fetchDonations();

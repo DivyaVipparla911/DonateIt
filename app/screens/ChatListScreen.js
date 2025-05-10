@@ -258,14 +258,14 @@ const ChatListScreen = ({ route }) => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
       
-      <View style={styles.header}>
+      {/* <View style={styles.header}>
         <Text style={styles.headerTitle}>Messages</Text>
         <TouchableOpacity onPress={() => navigation.navigate('NewChat')}>
           <Ionicons name="create-outline" size={24} color="#007AFF" />
         </TouchableOpacity>
-      </View>
+      </View> */}
       
-      <View style={styles.searchContainer}>
+      {/* <View style={styles.searchContainer}>
         <Ionicons name="search" size={20} color="#8E8E93" style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
@@ -274,7 +274,7 @@ const ChatListScreen = ({ route }) => {
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
-      </View>
+      </View> */}
       
       <FlatList
         data={filteredChats}  // Use filtered chats instead of all chats

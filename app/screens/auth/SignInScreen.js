@@ -1,157 +1,83 @@
 import React, { useState } from 'react';
-import axios from 'axios';
-import {
-  View,
-  TextInput,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform
-} from 'react-native';
+import { View, TextInput, Alert, Text, TouchableOpacity } from 'react-native';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../../firebaseConfig';
+import { auth } from '../../firebaseConfig'; 
 
 export default function SignInScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
 
   const handleSignin = async () => {
-    setLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-  
-      // ✅ Get ID token and UID
-      const idToken = await user.getIdToken(true);
-      const uid = user.uid;
-  
-      // ✅ Call backend to get user role
-      const response = await axios.get(`http://localhost:5000/api/auth/user-role/${uid}`);
-      const role = response.data.role;
-      console.log("Fetched user role:", role);
-  
-      // ✅ Navigate based on role
-      if (role === 'admin') {
-        navigation.reset({ index: 0, routes: [{ name: 'AdminHome' }] });
-      } else if (role === 'organizer') {
-        navigation.reset({ index: 0, routes: [{ name: 'OrganizerHome' }] });
-      } else {
-        navigation.reset({ index: 0, routes: [{ name: 'UserHome' }] });
-      }
-  
+      console.log('Firebase sign-in success:', userCredential);
+
+      // Get ID token
+      const idToken = await userCredential.user.getIdToken(true);
+      console.log("idToken", idToken);
     } catch (err) {
-      console.error('Sign-in error:', err?.code || err?.message || err);
-  
-      if (err.response?.status === 404) {
-        Alert.alert('Sign In Failed', 'User not found in database.');
-      } else if (err.code === 'auth/wrong-password') {
+      console.log('Firebase sign-in error:', err.code, err.message);
+
+      // Handle different errors
+      if (err.code === 'auth/wrong-password') {
         Alert.alert('Sign In Failed', 'Incorrect password');
       } else if (err.code === 'auth/user-not-found') {
-        Alert.alert('Sign In Failed', 'No account found for this email');
+        Alert.alert('Sign In Failed', 'No user found with this email');
       } else {
-        Alert.alert('Sign In Failed', 'Something went wrong. Please try again.');
+        Alert.alert('Sign In Failed', 'An error occurred. Please try again later');
       }
-    } finally {
-      setLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={styles.container}
-    >
-      <Text style={styles.title}>Sign In</Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        placeholderTextColor="#aaa"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
+    <View style={{ flex: 1, justifyContent: 'center', padding: 20, backgroundColor: '#f4f4f4' }}>
+      <TextInput 
+        placeholder="Email" 
+        onChangeText={setEmail} 
+        value={email} 
+        style={{
+          marginBottom: 10, 
+          padding: 8, 
+          borderWidth: 1, 
+          borderColor: '#ccc', 
+          borderRadius: 5, 
+          paddingTop: 10,
+        }} 
       />
-
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        placeholderTextColor="#aaa"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
+      <TextInput 
+        placeholder="Password" 
+        secureTextEntry 
+        onChangeText={setPassword} 
+        value={password} 
+        style={{
+          marginBottom: 10, 
+          padding: 8, 
+          borderWidth: 1, 
+          borderColor: '#ccc', 
+          borderRadius: 5, 
+          paddingTop: 10,
+        }} 
       />
 
       <TouchableOpacity
-        style={styles.button}
+        style={{
+          backgroundColor: '#007bff', 
+          padding: 10, 
+          borderRadius: 5, 
+          alignItems: 'center', 
+          marginTop: 10,
+        }}
         onPress={handleSignin}
-        disabled={loading}
       >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>Sign In</Text>
-        )}
+        <Text style={{ color: 'white', fontSize: 16 }}>Sign In</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
-        <Text style={styles.link}>Don't have an account? Sign Up</Text>
-      </TouchableOpacity>
-    </KeyboardAvoidingView>
+      <View style={{ marginTop: 20 }}>
+        <Text>Don't have an account? </Text>
+        <TouchableOpacity onPress={() => navigation.navigate("SignUp")}>
+          <Text style={{ color: '#007bff' }}>Create Account</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 24,
-    justifyContent: 'center',
-    backgroundColor: '#f9f9f9',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '600',
-    marginBottom: 32,
-    textAlign: 'center',
-    color: '#333',
-  },
-  input: {
-    height: 48,
-    borderColor: '#ddd',
-    borderWidth: 1,
-    borderRadius: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2, // for Android
-    paddingHorizontal: 16,
-    marginBottom: 16,
-    backgroundColor: '#fff',
-    fontSize: 16,
-    color: '#333',
-  },
-  button: {
-    height: 48,
-    backgroundColor: '#2b7de9',
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  link: {
-    color: '#2b7de9',
-    textAlign: 'center',
-    fontSize: 14,
-    marginTop: 8,
-  },
-});

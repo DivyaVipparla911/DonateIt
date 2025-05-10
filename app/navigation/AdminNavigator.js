@@ -3,8 +3,9 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from '@expo/vector-icons';
 import ManageEventsScreen from '../screens/admin/ManageEventsScreen';  
 import AdminProfileScreen from '../screens/admin/AdminProfileScreen';  
-import ManageRequestsScreen from '../screens/admin/ManageRequestsScreen';  
+import ManageDonationBoxesScreen from '../screens/admin/ManageDonationBoxesScreen';  
 import ManageDonationsScreen from '../screens/admin/ManageDonationsScreen';  
+import ChatNavigator from "./ChatNavigator";
 const Tab = createBottomTabNavigator();
 
 const AdminTabNavigator = () => {
@@ -17,8 +18,10 @@ const AdminTabNavigator = () => {
               iconName = focused ? 'home' : 'home-outline';
             } else if (route.name === 'ManageDonations') {
               iconName = focused ? 'people' : 'people-outline';
-            } else if (route.name === 'ManageRequests') {
-              iconName = focused ? 'people' : 'people-outline';
+            } else if (route.name === "ManageBoxes") {
+            iconName = focused ? "add-circle" : "add-circle-outline";
+            }  else if (route.name === "Chat") {
+            iconName = focused ? "chatbubble" : "chatbubble-outline";
             } else if (route.name === 'AdminProfile') {
               iconName = focused ? 'person' : 'person-outline';
             }
@@ -31,9 +34,11 @@ const AdminTabNavigator = () => {
         })}
       >
         <Tab.Screen name="ManageEvents" component={ManageEventsScreen} />
-        <Tab.Screen name="ManageRequests" component={ManageRequestsScreen} />
-        <Tab.Screen name="AdminProfile" component={AdminProfileScreen} />
+        <Tab.Screen name="ManageBoxes" component={ManageDonationBoxesScreen} />
         <Tab.Screen name="ManageDonations" component={ManageDonationsScreen} />
+        <Tab.Screen name="Chat" component={ChatNavigator} />       
+        <Tab.Screen name="AdminProfile" component={AdminProfileScreen} />
+
       </Tab.Navigator>
   );
 };
