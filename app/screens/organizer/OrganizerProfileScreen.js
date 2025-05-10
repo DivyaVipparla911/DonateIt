@@ -66,17 +66,27 @@ export default function OrganizerProfileScreen() {
     );
 
      if (selectedEvent) {
-          return (
-            <View style={{ padding: 20, flex: 1 }}>
-              <TouchableOpacity onPress={() => setSelectedEvent(null)} style={{ marginBottom: 20 }}>
-                <Text style={{ fontSize: 24 }}>←</Text>
-              </TouchableOpacity>
-              <Text style={{ fontSize: 24, fontWeight: 'bold' }}>{selectedEvent.name}</Text>
-              <Text style={{ marginTop: 10 }}>Description: {selectedEvent.description}</Text>
-              <Button title="Edit"/>
-            </View>
-          );
-        }
+      return (
+        <View style={{ padding: 20, flex: 1 }}>
+          <TouchableOpacity onPress={() => setSelectedEvent(null)} style={{ marginBottom: 20 }}>
+            <Text style={{ fontSize: 24 }}>← Back to Events</Text>
+          </TouchableOpacity>
+
+          <Text style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 10 }}>{selectedEvent.name}</Text>
+          <Text style={{ marginBottom: 5 }}>Description: {selectedEvent.description}</Text>
+          <Text style={{ marginBottom: 5 }}>Location: {selectedEvent.location}</Text>
+          <Text style={{ marginBottom: 5 }}>
+            Date: {new Date(selectedEvent.date).toLocaleDateString()}
+          </Text>
+          <Text style={{ marginBottom: 5 }}>
+            Items Accepted: {selectedEvent.items_accepted?.join(', ') || 'None'}
+          </Text>
+
+          <Button title="Edit" />
+        </View>
+      );
+    }
+
 
   return (
     <View style={{ padding: 20 }}>
