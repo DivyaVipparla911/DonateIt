@@ -39,7 +39,7 @@ export default function HomeScreen({ route, navigation }) {
         <Text style={{ fontWeight: 'bold' }}>{item.name}</Text>
         <Text>{item.description}</Text>
         <Text>{new Date(item.date).toLocaleDateString()}</Text>
-        <Text>Location: {item.location}</Text>
+        <Text>Location: {item.location.address}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -53,7 +53,7 @@ export default function HomeScreen({ route, navigation }) {
         <Text style={{ fontSize: 24, fontWeight: 'bold' }}>{selectedEvent.name}</Text>
         <Text style={{ marginTop: 10 }}>Description: {selectedEvent.description}</Text>
         <Text>Date: {new Date(selectedEvent.date).toLocaleDateString()}</Text>
-        <Text>Location: {selectedEvent.location}</Text>
+        <Text>Location: {selectedEvent.location?.address}</Text>
         <Button title="Delete" color="red" onPress={deleteEvent} />
       </View>
     );

@@ -1,86 +1,75 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert
+  View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert, ActivityIndicator, FlatList, Button
 } from 'react-native';
 import axios from 'axios';
 
-const AddDonationBoxScreen = () => {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [address, setAddress] = useState('');
-  const [availableHours, setAvailableHours] = useState('');
-  const [itemsAccepted, setItemsAccepted] = useState('');
+const ManageDonationBoxesScreen = () => {
+  const [donationBoxes, setDonationBoxes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedDonationBox, setSelectedDonationBox] = useState(null); 
 
   const handleSubmit = async () => {
     if (!name || !description || !address) {
       Alert.alert('Validation', 'Please fill all required fields.');
       return;
     }
+  };
 
+  useEffect(() => {
+  const fetchDonationBoxes = async () => {
     try {
-      await axios.post('http://localhost:5000/api/donation-boxes', {
-        name,
-        description,
-        address,
-        availableHours,
-        itemsAccepted: itemsAccepted.split(',').map(item => item.trim()),
-      });
-
-      Alert.alert('Success', 'Donation box created!');
-      setName('');
-      setDescription('');
-      setAddress('');
-      setAvailableHours('');
-      setItemsAccepted('');
+      const response = await axios.get('http://localhost:5000/api/user/donation-boxes');
+      setDonationBoxes(response.data);
     } catch (error) {
-      console.error(error);
-      Alert.alert('Error', 'Could not create donation box.');
+      console.error('Error fetching donation boxes:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Add Donation Box</Text>
+  fetchDonationBoxes();
+}, []);
 
-      <TextInput
-        style={styles.input}
-        placeholder="Name *"
-        value={name}
-        onChangeText={setName}
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="Description *"
-        value={description}
-        onChangeText={setDescription}
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="Address *"
-        value={address}
-        onChangeText={setAddress}
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="Available Hours (e.g. 9 AM - 5 PM)"
-        value={availableHours}
-        onChangeText={setAvailableHours}
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="Items Accepted (comma separated)"
-        value={itemsAccepted}
-        onChangeText={setItemsAccepted}
-      />
-
-      <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-        <Text style={styles.buttonText}>Submit</Text>
+  const renderDonationBox = ({ item }) => (
+      <TouchableOpacity onPress={() => setSelectedDonationBox(item)}>
+        <View style={{ padding: 10, marginVertical: 5, backgroundColor: '#f0f0f0' }}>
+          <Text style={{ fontWeight: 'bold' }}>{item.name}</Text>
+          <Text>{item.description}</Text>
+          <Text>Location: {item.address}</Text>
+        </View>
       </TouchableOpacity>
-    </ScrollView>
+    );
+  
+    if (selectedDonationBox) {
+      return (
+        <View style={{ padding: 20, flex: 1 }}>
+          <TouchableOpacity onPress={() => setSelectedDonationBox(null)} style={{ marginBottom: 20 }}>
+            <Text style={{ fontSize: 24 }}>←</Text>
+          </TouchableOpacity>
+          <Text style={{ fontSize: 24, fontWeight: 'bold' }}>{selectedDonationBox.name}</Text>
+          <Text>Location: {selectedDonationBox?.address}</Text>
+          <Text style={{ marginTop: 10 }}>Type: {selectedDonationBox.type}</Text>
+          <Text>Hours: {(selectedDonationBox.hours)}</Text>
+          <Button title="Delete" color="red"  />
+        </View>
+      );
+    }
+
+  return (
+   <View style={{ padding: 20, flex: 1 }}>
+         <Text style={{ fontSize: 18, marginBottom: 10 }}>Welcome!</Text>
+         {loading ? (
+           <ActivityIndicator size="large" color="#0000ff" style={{ marginTop: 20 }} />
+         ) : (
+           <FlatList
+             data={donationBoxes}
+             keyExtractor={(item) => item._id}
+             renderItem={renderDonationBox}
+             contentContainerStyle={{ marginTop: 20 }}
+           />
+         )}
+       </View>
   );
 };
 
@@ -115,4 +104,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default AddDonationBoxScreen;
+export default ManageDonationBoxesScreen;
