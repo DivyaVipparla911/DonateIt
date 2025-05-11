@@ -146,7 +146,7 @@ export default function UserHomeScreen({ navigation }) {
         participants: [currentUser.uid, selectedEvent.organizerId],
         participantInfo: {
           [currentUser.uid]: {
-            name: currentUser.displayName || 'User',
+            name: currentUser.name || 'User',
             email: currentUser.email || '',
             photoURL: currentUser.photoURL || null
           },

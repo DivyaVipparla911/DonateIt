@@ -67,6 +67,7 @@ const addEvent = async (req, res) =>{
       const { uid, email } = decodedToken;
       console.log("saving event to mongo db", items_accepted);
       const newEvent = new Event({
+            email: email,
             organizer_id: uid,
             name: name,
             description: description,

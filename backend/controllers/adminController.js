@@ -14,6 +14,9 @@ const deleteEvents = async (req, res) =>{
       return res.status(404).json({ message: 'Event not found' });
     }
     res.status(200).json({ message: 'Event deleted successfully' });
+    if (deletedEvent.email) {
+    sendDeleteEmail(deletedEvent.email, deletedEvent);
+  }
   } catch (error) {
     console.error('Error deleting event:', error);
     res.status(500).json({ message: 'Server error' });
@@ -22,16 +25,16 @@ const deleteEvents = async (req, res) =>{
 
 const deleteDonations = async (req, res) =>{
   const { id } = req.params;
-  const { name, email, description, address, status, assignee, dateTime } = req.body;
 try {
-  const deletedEvent = await Donation.findByIdAndDelete(id);
-  if (!deletedEvent) {
+  console.log("delete donation");
+  const deletedDonation = await Donation.findByIdAndDelete(id);
+  if (!deletedDonation) {
     return res.status(404).json({ message: 'Donation not found' });
   }
   res.status(200).json({ message: 'Donation deleted successfully' });
 
-  if (deletedEvent.email) {
-    sendDeleteEmail(deletedEvent.email, deletedEvent);
+  if (deletedDonation.email) {
+    sendDeleteEmail(deletedDonation.email, deletedDonation);
   }
 
 } catch (error) {

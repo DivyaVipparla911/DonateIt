@@ -104,7 +104,7 @@ export default function OrganizerProfileScreen() {
 
 
   return (
-    <View style={{ padding: 20 }}>
+    <View style={{ padding: 20, flex: 1 }}>
       <Text>Email: {profile.email}</Text>
       <Text>Name: {profile.name}</Text>
       <Text style={{ marginTop: 20, fontWeight: 'bold', fontSize: 16 }}>Your Events:</Text>

@@ -66,8 +66,8 @@ export default function HomeScreen() {
       <View style={{ padding: 10, marginVertical: 5, backgroundColor: '#f0f0f0' }}>
         <Text style={{ fontWeight: 'bold' }}>{item.name}</Text>
         <Text>{item.description}</Text>
-        <Text>Location: {item.location || item.address}</Text>
-        <Text>Status: {item.status || 'N/A'}</Text>
+        <Text>Location: {item.address.address || ""}</Text>
+        {/* <Text>Status: {item.status || 'N/A'}</Text> */}
         <Text>Assignee: {item.assignee || 'Unassigned'}</Text>
         <Text>Pickup Date and Time: {item.dateTime || 'Unassigned'}</Text>
 
@@ -91,11 +91,14 @@ export default function HomeScreen() {
           <Text style={{ marginBottom: 5, fontWeight: 'bold' }}>Description</Text>
           <Text style={{ marginBottom: 10 }}>{selectedDonation.description}</Text>
 
-          <Text style={{ marginBottom: 5, fontWeight: 'bold' }}>Location</Text>
-          <Text style={{ marginBottom: 10 }}>{selectedDonation.location}</Text>
+          <Text style={{ marginBottom: 5, fontWeight: 'bold' }}>Address</Text>
+          <Text style={{ marginBottom: 10 }}>{selectedDonation.address.address}</Text>
 
-          <Text style={{ marginBottom: 5 }}>Status</Text>
-          <Picker
+          <Text style={{ marginBottom: 5, fontWeight: 'bold' }}>Donor Availability</Text>
+          <Text style={{ marginBottom: 10 }}>{selectedDonation.availability}</Text>
+
+          {/* <Text style={{ marginBottom: 5 }}>Status</Text> */}
+          {/* <Picker
             selectedValue={editedDonation.status}
             onValueChange={(value) =>
               setEditedDonation({ ...editedDonation, status: value })
@@ -106,7 +109,7 @@ export default function HomeScreen() {
             <Picker.Item label="Pending" value="pending" />
             <Picker.Item label="Approved" value="approved" />
             <Picker.Item label="Rejected" value="rejected" />
-          </Picker>
+          </Picker> */}
 
           <TextInput
             placeholder="Assignee"
@@ -138,8 +141,11 @@ export default function HomeScreen() {
 
         <Text style={{ fontSize: 24, fontWeight: 'bold' }}>{selectedDonation.name}</Text>
         <Text style={{ marginTop: 10 }}>Description: {selectedDonation.description}</Text>
-        <Text>Location: {selectedDonation.location}</Text>
-        <Text>Status: {selectedDonation.status || 'N/A'}</Text>
+        <Text>Location: {selectedDonation.address.address}</Text>
+        <Text style={{ marginBottom: 5, fontWeight: 'bold' }}>Donor Availability</Text>
+          <Text style={{ marginBottom: 10 }}>{selectedDonation.availability}</Text>
+
+        {/* <Text>Status: {selectedDonation.status || 'N/A'}</Text> */}
         <Text>Assignee: {selectedDonation.assignee || 'Unassigned'}</Text>
 
         <View style={{ marginTop: 30 }}>
