@@ -24,6 +24,7 @@
     "expo-checkbox": "~4.0.1",
     "expo-device": "~7.0.3",
     "expo-image-picker": "^16.0.6",
+    "expo-location": "^18.1.5",
     "expo-notifications": "~0.29.14",
     "expo-status-bar": "~2.0.1",
     "express": "^5.1.0",

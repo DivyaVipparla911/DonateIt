@@ -55,12 +55,19 @@ export default function OrganizerProfileScreen() {
     );
   }
 
+  const handleContactAdmin = () => {
+    // Assuming the admin's email or contact URL
+    const adminEmail = 'admin@example.com';
+    const mailUrl = `mailto:${adminEmail}`;
+    Linking.openURL(mailUrl);
+  };
+
    const renderEvent = ({ item }) => (
       <TouchableOpacity onPress={() => setSelectedEvent(item)}>
         <View style={{ padding: 10, marginVertical: 5, backgroundColor: '#f0f0f0' }}>
           <Text style={{ fontWeight: 'bold' }}>{item.name}</Text>
           <Text>{item.description}</Text>
-          <Text>Address: {item.address}</Text>
+          <Text>Address: {item.location.address}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -74,7 +81,7 @@ export default function OrganizerProfileScreen() {
 
           <Text style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 10 }}>{selectedEvent.name}</Text>
           <Text style={{ marginBottom: 5 }}>Description: {selectedEvent.description}</Text>
-          <Text style={{ marginBottom: 5 }}>Location: {selectedEvent.location}</Text>
+          <Text style={{ marginBottom: 5 }}>Location: {selectedEvent.location.address}</Text>
           <Text style={{ marginBottom: 5 }}>
             Date: {new Date(selectedEvent.date).toLocaleDateString()}
           </Text>
@@ -82,7 +89,15 @@ export default function OrganizerProfileScreen() {
             Items Accepted: {selectedEvent.items_accepted?.join(', ') || 'None'}
           </Text>
 
-          <Button title="Edit" />
+           <View style={{ padding: 10, backgroundColor: '#f0f0f0', marginTop: 'auto' }}>
+          <Text style={{ textAlign: 'center' }}>
+            You cannot edit an event.{' '}
+            <Text style={{ color: 'blue' }} onPress={handleContactAdmin}>
+              Please contact admin for any changes.
+            </Text>
+          </Text>
+        </View>
+          
         </View>
       );
     }
