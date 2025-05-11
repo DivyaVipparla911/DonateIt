@@ -198,7 +198,7 @@ export default function UserHomeScreen({ navigation }) {
       <Text style={styles.eventDescription}>{item.description}</Text>
       <View style={styles.eventDetails}>
         <Text style={styles.eventDate}>• {new Date(item.date).toLocaleDateString()}</Text>
-        <Text style={styles.eventLocation}>• {item.location}</Text>
+        <Text style={styles.eventLocation}>• {item.location.address}</Text>
       </View>
       <View style={styles.divider} />
     </TouchableOpacity>
@@ -246,7 +246,7 @@ export default function UserHomeScreen({ navigation }) {
         
         <View style={styles.eventDetails}>
           <Text style={styles.eventDate}>• {new Date(selectedEvent.date).toLocaleDateString()}</Text>
-          <Text style={styles.eventLocation}>• {selectedEvent.location}</Text>
+          <Text style={styles.eventLocation}>• {selectedEvent.location.address}</Text>
         </View>
         
         <View style={styles.buttonContainer}>

@@ -20,7 +20,7 @@ import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplet
 
 
 const MAPS_KEY = "AIzaSyDw26V3Tw0g6tXKWX5ruHx8nAl6eJrn7vI";
-const predefinedItems = ['Clothes', 'Toys', 'Books', 'Food', 'Electronics'];
+const predefinedItems = ['Clothes', 'Toys', 'Books', 'Groceries', 'Electronics'];
 
 const AddEventScreen = () => {
   const [formData, setFormData] = useState({
@@ -322,21 +322,20 @@ const AddEventScreen = () => {
 
       {Platform.OS === 'web' ? (
             renderLocationInput(
-              'Meeting Point',
+              'Event Location',
               'meeting-point',
-              meetingPoint.address,
+              meetingPoint.location,
               (text) => setMeetingPoint(prev => ({ ...prev, address: text })))
           ) : (
             renderMobileAutocomplete(
-              'Meeting Point',
+              'Event Location',
               meetingPointRef,
               handleMeetingPointSelect
             )
           )}
 
 
-      <Text style={styles.label}>Event Date</Text>
-          <View style={styles.dateRow}>
+          <View style={styles.label}>
             <DatePickerButton
               label="Event Date"
               date={eventDate}
