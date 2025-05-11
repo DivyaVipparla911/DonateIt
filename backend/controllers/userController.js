@@ -34,6 +34,7 @@ const addDonation = async (req, res) =>{
     donationCategory,
     donationDescription,
     donorAddress,
+    pickupTime,
     donationPhotos} = req.body;
   try {
     console.log("adding donation");
@@ -47,6 +48,7 @@ const addDonation = async (req, res) =>{
             category: donationCategory,
             description: donationDescription,
             address: donorAddress,
+            availability: pickupTime,
             images: donationPhotos || [],
             status: 'pending',
           });

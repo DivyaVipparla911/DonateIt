@@ -23,6 +23,13 @@ export default function UserProfileScreen({ navigation }) {
   const logout =  async() => {
     await auth.signOut();
   };
+  const handleContactAdmin = () => {
+    // Assuming the admin's email or contact URL
+    const adminEmail = 'admin@example.com';
+    const mailUrl = `mailto:${adminEmail}`;
+    Linking.openURL(mailUrl);
+  };
+
 
   useEffect(() => {
     const fetchProfileAndDonations = async () => {
@@ -71,6 +78,7 @@ export default function UserProfileScreen({ navigation }) {
       <View style={{ padding: 10, marginVertical: 5, backgroundColor: '#f0f0f0', borderRadius: 6 }}>
         <Text style={{ fontWeight: 'bold' }}>{item.category || 'Untitled'}</Text>
         <Text numberOfLines={2}>{item.donationDescription}</Text>
+        <Text style={{ marginTop: 10 }}>{item.availability}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -86,7 +94,8 @@ export default function UserProfileScreen({ navigation }) {
           {selectedDonation.category || 'Donation'}
         </Text>
         <Text style={{ marginTop: 10 }}>Description: {selectedDonation.description}</Text>
-        <Text style={{ marginTop: 5 }}>Address: {selectedDonation.address}</Text>
+        <Text style={{ marginTop: 10 }}>Available date and time for pickup: {selectedDonation.availability}</Text>
+        <Text style={{ marginTop: 5 }}>Address: {selectedDonation.address.address}</Text>
         {selectedDonation.images?.length > 0 && (
           <ScrollView horizontal style={{ marginTop: 15 }}>
             {selectedDonation.images.map((photoUrl, idx) => (
@@ -98,6 +107,15 @@ export default function UserProfileScreen({ navigation }) {
             ))}
           </ScrollView>
         )}
+
+         <View style={{ padding: 10, backgroundColor: '#f0f0f0', marginTop: 'auto' }}>
+                  <Text style={{ textAlign: 'center' }}>
+                    You cannot edit your donation.{' '}
+                    <Text style={{ color: 'blue' }} onPress={handleContactAdmin}>
+                      Please contact admin for any changes.
+                    </Text>
+                  </Text>
+                </View>
       </SafeAreaView>
     );
   }

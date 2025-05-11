@@ -7,7 +7,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Linking,
-  ActivityIndicator
+  ActivityIndicator,
+  TextInput
 } from "react-native";
 import axios from "axios";
 import * as Location from 'expo-location';
@@ -17,8 +18,20 @@ export default function MapScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
   const mapRef = useRef(null);
-  const [mapInitialized, setMapInitialized] = useState(false);
+  const autocompleteService = useRef(null);
+  const placesService = useRef(null);
+
+  // Initialize Google Maps services when loaded
+  useEffect(() => {
+    if (Platform.OS === "web" && window.google) {
+      autocompleteService.current = new window.google.maps.places.AutocompleteService();
+      placesService.current = new window.google.maps.places.PlacesService(document.createElement('div'));
+    }
+  }, []);
 
   // Get user's current location
   useEffect(() => {
@@ -28,7 +41,6 @@ export default function MapScreen() {
         
         if (status !== 'granted') {
           setError('Permission to access location was denied');
-          // Use default location (San Francisco) if permission denied
           const defaultLocation = { latitude: 37.7749, longitude: -122.4194 };
           setUserLocation(defaultLocation);
           fetchNearbyBoxes(defaultLocation.latitude, defaultLocation.longitude);
@@ -45,7 +57,6 @@ export default function MapScreen() {
       } catch (err) {
         console.error("Error getting location:", err);
         setError('Failed to get your location');
-        // Fallback to default location
         const defaultLocation = { latitude: 37.7749, longitude: -122.4194 };
         setUserLocation(defaultLocation);
         fetchNearbyBoxes(defaultLocation.latitude, defaultLocation.longitude);
@@ -53,7 +64,54 @@ export default function MapScreen() {
     })();
   }, []);
 
-  // Function to fetch nearby donation boxes from MongoDB
+  // Handle search input changes
+  const handleSearchChange = (text) => {
+    setSearchQuery(text);
+    if (text.length > 2 && Platform.OS === "web" && autocompleteService.current) {
+      autocompleteService.current.getPlacePredictions(
+        { input: text, types: ['geocode'] },
+        (predictions, status) => {
+          if (status === 'OK') {
+            setSearchResults(predictions);
+            setShowSearchResults(true);
+          } else {
+            setShowSearchResults(false);
+          }
+        }
+      );
+    } else {
+      setShowSearchResults(false);
+    }
+  };
+
+  // Handle location selection from search results
+  const handleLocationSelect = (place) => {
+    setSearchQuery(place.description);
+    setShowSearchResults(false);
+    
+    // Get details of the selected place
+    placesService.current.getDetails(
+      { placeId: place.place_id },
+      (placeDetails, status) => {
+        if (status === 'OK' && placeDetails.geometry && placeDetails.geometry.location) {
+          const newLocation = {
+            latitude: placeDetails.geometry.location.lat(),
+            longitude: placeDetails.geometry.location.lng()
+          };
+          setUserLocation(newLocation);
+          fetchNearbyBoxes(newLocation.latitude, newLocation.longitude);
+          
+          // Center map on selected location
+          if (mapRef.current && window.google?.maps) {
+            const map = new window.google.maps.Map(mapRef.current);
+            map.setCenter(newLocation);
+          }
+        }
+      }
+    );
+  };
+
+  // Fetch nearby donation boxes from MongoDB
   const fetchNearbyBoxes = async (latitude, longitude) => {
     setLoading(true);
     setError(null);
@@ -75,7 +133,6 @@ export default function MapScreen() {
           return {
             ...box,
             distance: distance.toFixed(1) + " miles away",
-            // Add array format for map compatibility
             location: {
               coordinates: [box.coordinates.longitude, box.coordinates.latitude]
             }
@@ -95,72 +152,14 @@ export default function MapScreen() {
     } catch (apiError) {
       console.error("API Error:", apiError);
       setError("Couldn't connect to server. Using sample data.");
-      // Fallback to mock data...
-    } 
-    finally {
+    } finally {
       setLoading(false);
     }
   };
-      
-      // 2. Fallback to mock data if API fails
-  //     const mockBoxes = getMockBoxes(latitude, longitude);
-  //     const boxesWithDistance = mockBoxes.map(box => {
-  //       const distance = calculateDistance(
-  //         latitude,
-  //         longitude,
-  //         box.location.coordinates[1],
-  //         box.location.coordinates[0]
-  //       );
-        
-  //       return {
-  //         ...box,
-  //         distance: distance.toFixed(1) + " miles away"
-  //       };
-  //     });
-      
-  //     setBoxes(boxesWithDistance);
-      
-  //     if (Platform.OS === "web" && window.google?.maps) {
-  //       initializeMap(boxesWithDistance);
-  //     }
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
 
-  // Generate mock data for fallback
-  // const getMockBoxes = (lat, lng) => {
-  //   return [
-  //     {
-  //       _id: "1",
-  //       name: "Community Center Box",
-  //       address: "123 Main Street",
-  //       location: {
-  //         coordinates: [lng - 0.01, lat + 0.008] // [longitude, latitude]
-  //       }
-  //     },
-  //     {
-  //       _id: "2",
-  //       name: "Shopping Mall Box",
-  //       address: "456 Market Street",
-  //       location: {
-  //         coordinates: [lng + 0.005, lat - 0.003]
-  //       }
-  //     },
-  //     {
-  //       _id: "3",
-  //       name: "Library Donation Box",
-  //       address: "789 Library Avenue",
-  //       location: {
-  //         coordinates: [lng - 0.008, lat - 0.005]
-  //       }
-  //     }
-  //   ];
-  // };
-
-  // Calculate distance between coordinates (Haversine formula)
+  // Calculate distance between coordinates
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 3958.8; // Earth's radius in miles
+    const R = 3958.8;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a = 
@@ -182,7 +181,7 @@ export default function MapScreen() {
     Linking.openURL(url);
   };
 
-  // Initialize Google Maps (for web platform)
+  // Initialize Google Maps
   const initializeMap = (boxesToDisplay) => {
     if (!mapRef.current || !window.google?.maps || !userLocation) return;
     
@@ -226,11 +225,9 @@ export default function MapScreen() {
         infoWindow.open(map, marker);
       });
     });
-    
-    setMapInitialized(true);
   };
 
-  // Load Google Maps API (for web platform)
+  // Load Google Maps API
   useEffect(() => {
     if (Platform.OS === "web" && !window.google) {
       const script = document.createElement("script");
@@ -238,6 +235,8 @@ export default function MapScreen() {
       script.async = true;
       script.defer = true;
       script.onload = () => {
+        autocompleteService.current = new window.google.maps.places.AutocompleteService();
+        placesService.current = new window.google.maps.places.PlacesService(document.createElement('div'));
         if (userLocation && boxes.length > 0) {
           initializeMap(boxes);
         }
@@ -264,7 +263,30 @@ export default function MapScreen() {
       <Text style={styles.header}>DonateIt</Text>
       <Text style={styles.subheader}>Donation boxes near you</Text>
       
-      {/* Google Maps Integration (Web Only) */}
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search for a location..."
+          value={searchQuery}
+          onChangeText={handleSearchChange}
+        />
+        {showSearchResults && (
+          <View style={styles.searchResultsContainer}>
+            {searchResults.map((result) => (
+              <TouchableOpacity
+                key={result.place_id}
+                style={styles.searchResultItem}
+                onPress={() => handleLocationSelect(result)}
+              >
+                <Text>{result.description}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+      </View>
+      
+      {/* Google Maps Integration */}
       {Platform.OS === "web" && (
         <View style={styles.mapContainer}>
           <Text style={styles.mapLabel}>Donation Boxes Map</Text>
@@ -338,7 +360,6 @@ export default function MapScreen() {
   );
 }
 
-// Styles remain the same as in your original code
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -359,6 +380,37 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
     marginBottom: 20
+  },
+  searchContainer: {
+    marginBottom: 20,
+    position: 'relative',
+    zIndex: 10
+  },
+  searchInput: {
+    height: 40,
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    backgroundColor: '#fff'
+  },
+  searchResultsContainer: {
+    position: 'absolute',
+    top: 40,
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 8,
+    zIndex: 1000,
+    maxHeight: 200,
+    overflow: 'scroll'
+  },
+  searchResultItem: {
+    padding: 10,
+    borderBottomColor: '#eee',
+    borderBottomWidth: 1
   },
   mapContainer: {
     marginBottom: 20,

@@ -19,7 +19,6 @@ import { TouchableOpacity } from 'react-native';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 
 
-const MAPS_KEY = "AIzaSyDw26V3Tw0g6tXKWX5ruHx8nAl6eJrn7vI";
 const predefinedItems = ['Clothes', 'Toys', 'Books', 'Groceries', 'Electronics'];
 
 const AddEventScreen = () => {
