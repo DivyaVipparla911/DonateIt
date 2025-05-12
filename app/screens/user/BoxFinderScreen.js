@@ -7,7 +7,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Linking,
-  ActivityIndicator
+  ActivityIndicator,
+  TextInput
 } from "react-native";
 import axios from "axios";
 import * as Location from 'expo-location';
@@ -17,8 +18,22 @@ export default function MapScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [mapZoom, setMapZoom] = useState(13);
   const mapRef = useRef(null);
-  const [mapInitialized, setMapInitialized] = useState(false);
+  const mapInstance = useRef(null);
+  const autocompleteService = useRef(null);
+  const placesService = useRef(null);
+
+  // Initialize Google Maps services when loaded
+  useEffect(() => {
+    if (Platform.OS === "web" && window.google) {
+      autocompleteService.current = new window.google.maps.places.AutocompleteService();
+      placesService.current = new window.google.maps.places.PlacesService(document.createElement('div'));
+    }
+  }, []);
 
   // Get user's current location
   useEffect(() => {
@@ -28,7 +43,6 @@ export default function MapScreen() {
         
         if (status !== 'granted') {
           setError('Permission to access location was denied');
-          // Use default location (San Francisco) if permission denied
           const defaultLocation = { latitude: 37.7749, longitude: -122.4194 };
           setUserLocation(defaultLocation);
           fetchNearbyBoxes(defaultLocation.latitude, defaultLocation.longitude);
@@ -45,7 +59,6 @@ export default function MapScreen() {
       } catch (err) {
         console.error("Error getting location:", err);
         setError('Failed to get your location');
-        // Fallback to default location
         const defaultLocation = { latitude: 37.7749, longitude: -122.4194 };
         setUserLocation(defaultLocation);
         fetchNearbyBoxes(defaultLocation.latitude, defaultLocation.longitude);
@@ -53,16 +66,80 @@ export default function MapScreen() {
     })();
   }, []);
 
-  // Function to fetch nearby donation boxes from MongoDB
+  // Handle search input changes
+  const handleSearchChange = (text) => {
+    setSearchQuery(text);
+    if (text.length > 2 && Platform.OS === "web" && autocompleteService.current) {
+      autocompleteService.current.getPlacePredictions(
+        { input: text, types: ['geocode'] },
+        (predictions, status) => {
+          if (status === 'OK') {
+            setSearchResults(predictions);
+            setShowSearchResults(true);
+          } else {
+            setShowSearchResults(false);
+          }
+        }
+      );
+    } else {
+      setShowSearchResults(false);
+    }
+  };
+
+  // Handle location selection from search results
+  const handleLocationSelect = (place) => {
+    setSearchQuery(place.description);
+    setShowSearchResults(false);
+    
+    // Get details of the selected place
+    placesService.current.getDetails(
+      { placeId: place.place_id },
+      (placeDetails, status) => {
+        if (status === 'OK' && placeDetails.geometry && placeDetails.geometry.location) {
+          const newLocation = {
+            latitude: placeDetails.geometry.location.lat(),
+            longitude: placeDetails.geometry.location.lng()
+          };
+          setUserLocation(newLocation);
+          fetchNearbyBoxes(newLocation.latitude, newLocation.longitude);
+          
+          // Center map on selected location
+          if (mapInstance.current) {
+            mapInstance.current.setCenter({
+              lat: newLocation.latitude,
+              lng: newLocation.longitude
+            });
+          }
+        }
+      }
+    );
+  };
+
+  // Fetch nearby donation boxes from MongoDB
   const fetchNearbyBoxes = async (latitude, longitude) => {
     setLoading(true);
     setError(null);
     
     try {
-      const response = await axios.get('http://localhost:5000/api/user/donation-boxes');
-      const allBoxes = response.data;
+      // Modified to send coordinates and radius in the request
+      // Limiting to 10 results with a radius of 5 miles
+      const response = await axios.get(
+        `http://localhost:5000/api/user/donation-boxes?lat=${latitude}&lng=${longitude}&radius=5&limit=10`
+      );
       
-      const boxesWithDistance = allBoxes
+      const nearbyBoxes = response.data;
+      console.log(`Fetched ${nearbyBoxes.length} nearby boxes`);
+      
+      if (nearbyBoxes.length === 0) {
+        console.log("No boxes found nearby, trying with a larger radius");
+        // If no boxes found, try with a larger radius
+        const fallbackResponse = await axios.get(
+          `http://localhost:5000/api/user/donation-boxes?lat=${latitude}&lng=${longitude}&radius=20&limit=10`
+        );
+        nearbyBoxes.push(...fallbackResponse.data);
+      }
+      
+      const boxesWithDistance = nearbyBoxes
         .filter(box => box.coordinates && typeof box.coordinates.latitude === 'number' && typeof box.coordinates.longitude === 'number')
         .map(box => {
           const distance = calculateDistance(
@@ -75,7 +152,6 @@ export default function MapScreen() {
           return {
             ...box,
             distance: distance.toFixed(1) + " miles away",
-            // Add array format for map compatibility
             location: {
               coordinates: [box.coordinates.longitude, box.coordinates.latitude]
             }
@@ -84,7 +160,7 @@ export default function MapScreen() {
       
       const sortedBoxes = boxesWithDistance.sort((a, b) => 
         parseFloat(a.distance) - parseFloat(b.distance)
-      );
+      ).slice(0, 10); 
       
       setBoxes(sortedBoxes);
       
@@ -95,72 +171,14 @@ export default function MapScreen() {
     } catch (apiError) {
       console.error("API Error:", apiError);
       setError("Couldn't connect to server. Using sample data.");
-      // Fallback to mock data...
-    } 
-    finally {
+    } finally {
       setLoading(false);
     }
   };
-      
-      // 2. Fallback to mock data if API fails
-  //     const mockBoxes = getMockBoxes(latitude, longitude);
-  //     const boxesWithDistance = mockBoxes.map(box => {
-  //       const distance = calculateDistance(
-  //         latitude,
-  //         longitude,
-  //         box.location.coordinates[1],
-  //         box.location.coordinates[0]
-  //       );
-        
-  //       return {
-  //         ...box,
-  //         distance: distance.toFixed(1) + " miles away"
-  //       };
-  //     });
-      
-  //     setBoxes(boxesWithDistance);
-      
-  //     if (Platform.OS === "web" && window.google?.maps) {
-  //       initializeMap(boxesWithDistance);
-  //     }
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
 
-  // Generate mock data for fallback
-  // const getMockBoxes = (lat, lng) => {
-  //   return [
-  //     {
-  //       _id: "1",
-  //       name: "Community Center Box",
-  //       address: "123 Main Street",
-  //       location: {
-  //         coordinates: [lng - 0.01, lat + 0.008] // [longitude, latitude]
-  //       }
-  //     },
-  //     {
-  //       _id: "2",
-  //       name: "Shopping Mall Box",
-  //       address: "456 Market Street",
-  //       location: {
-  //         coordinates: [lng + 0.005, lat - 0.003]
-  //       }
-  //     },
-  //     {
-  //       _id: "3",
-  //       name: "Library Donation Box",
-  //       address: "789 Library Avenue",
-  //       location: {
-  //         coordinates: [lng - 0.008, lat - 0.005]
-  //       }
-  //     }
-  //   ];
-  // };
-
-  // Calculate distance between coordinates (Haversine formula)
+  // Calculate distance between coordinates
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 3958.8; // Earth's radius in miles
+    const R = 3958.8;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a = 
@@ -182,14 +200,41 @@ export default function MapScreen() {
     Linking.openURL(url);
   };
 
-  // Initialize Google Maps (for web platform)
+  // Handle map zoom controls
+  const handleZoomIn = () => {
+    if (mapInstance.current) {
+      const currentZoom = mapInstance.current.getZoom();
+      mapInstance.current.setZoom(currentZoom + 1);
+      setMapZoom(currentZoom + 1);
+    }
+  };
+
+  const handleZoomOut = () => {
+    if (mapInstance.current) {
+      const currentZoom = mapInstance.current.getZoom();
+      if (currentZoom > 1) {
+        mapInstance.current.setZoom(currentZoom - 1);
+        setMapZoom(currentZoom - 1);
+      }
+    }
+  };
+
+  // Initialize Google Maps
   const initializeMap = (boxesToDisplay) => {
     if (!mapRef.current || !window.google?.maps || !userLocation) return;
     
     const map = new window.google.maps.Map(mapRef.current, {
       center: { lat: userLocation.latitude, lng: userLocation.longitude },
-      zoom: 13
+      zoom: mapZoom,
+      scrollwheel: true, // Enable scroll wheel zooming
+      gestureHandling: 'cooperative', // Makes the map require Ctrl+Scroll to zoom, allowing normal page scrolling
+      zoomControl: false, // We'll add custom zoom controls
+      mapTypeControl: true,
+      streetViewControl: false,
+      fullscreenControl: true
     });
+    
+    mapInstance.current = map;
     
     // Add user location marker
     new window.google.maps.Marker({
@@ -226,11 +271,9 @@ export default function MapScreen() {
         infoWindow.open(map, marker);
       });
     });
-    
-    setMapInitialized(true);
   };
 
-  // Load Google Maps API (for web platform)
+  // Load Google Maps API
   useEffect(() => {
     if (Platform.OS === "web" && !window.google) {
       const script = document.createElement("script");
@@ -238,6 +281,8 @@ export default function MapScreen() {
       script.async = true;
       script.defer = true;
       script.onload = () => {
+        autocompleteService.current = new window.google.maps.places.AutocompleteService();
+        placesService.current = new window.google.maps.places.PlacesService(document.createElement('div'));
         if (userLocation && boxes.length > 0) {
           initializeMap(boxes);
         }
@@ -260,86 +305,157 @@ export default function MapScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.header}>DonateIt</Text>
-      <Text style={styles.subheader}>Donation boxes near you</Text>
-      
-      {/* Google Maps Integration (Web Only) */}
-      {Platform.OS === "web" && (
-        <View style={styles.mapContainer}>
-          <Text style={styles.mapLabel}>Donation Boxes Map</Text>
-          {error ? (
-            <Text style={styles.errorText}>{error}</Text>
-          ) : (
-            <div
-              ref={mapRef}
-              style={{
-                width: '100%',
-                height: 300,
-                borderRadius: 8,
-                overflow: 'hidden'
-              }}
-            />
+    <ScrollView 
+      style={styles.mainScrollView}
+      contentContainerStyle={styles.mainScrollViewContent}
+      showsVerticalScrollIndicator={true}
+      persistentScrollbar={true}
+    >
+      <View style={styles.container}>
+        <Text style={styles.header}>DonateIt</Text>
+        <Text style={styles.subheader}>Donation boxes near you</Text>
+        
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search for a location..."
+            value={searchQuery}
+            onChangeText={handleSearchChange}
+          />
+          {showSearchResults && (
+            <View style={styles.searchResultsContainer}>
+              <ScrollView 
+                style={styles.searchResultsScroll}
+                keyboardShouldPersistTaps="handled"
+                nestedScrollEnabled={true}
+              >
+                {searchResults.map((result) => (
+                  <TouchableOpacity
+                    key={result.place_id}
+                    style={styles.searchResultItem}
+                    onPress={() => handleLocationSelect(result)}
+                  >
+                    <Text>{result.description}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
           )}
         </View>
-      )}
-      
-      {/* Location info */}
-      {userLocation && (
-        <View style={styles.locationInfo}>
-          <Text style={styles.locationText}>
-            {error ? "Using default location" : "Using your current location"}
-          </Text>
-          <TouchableOpacity 
-            style={styles.refreshButton}
-            onPress={() => {
-              if (userLocation) {
-                fetchNearbyBoxes(userLocation.latitude, userLocation.longitude);
-              }
-            }}
-          >
-            <Text style={styles.refreshText}>Refresh</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-      
-      {/* Nearby Donation Boxes List */}
-      <Text style={styles.sectionHeader}>
-        Nearby Donation Boxes {boxes.length > 0 ? `(${boxes.length})` : ''}
-      </Text>
-      
-      {boxes.length === 0 && !loading ? (
-        <Text style={styles.noBoxesText}>No donation boxes found nearby.</Text>
-      ) : (
-        <ScrollView style={styles.boxesContainer}>
-          {boxes.map((box) => (
-            <View key={box._id} style={styles.boxCard}>
-              <Text style={styles.boxName}>{box.name}</Text>
-              <Text style={styles.boxDistance}>{box.distance}</Text>
-              <Text style={styles.boxAddress}>{box.address}</Text>
-              
-              <TouchableOpacity 
-                style={styles.directionsButton}
-                onPress={() => openDirections(
-                  box.location.coordinates[1],
-                  box.location.coordinates[0],
-                  box.name
-                )}
-              >
-                <Text style={styles.directionsText}>Directions</Text>
-              </TouchableOpacity>
-              
-              <View style={styles.divider} />
+        
+        {/* Google Maps Integration */}
+        {Platform.OS === "web" && (
+          <View style={styles.mapContainer}>
+            <View style={styles.mapHeaderContainer}>
+              <Text style={styles.mapLabel}>Donation Boxes Map</Text>
+              <View style={styles.mapControlsContainer}>
+                <TouchableOpacity 
+                  style={styles.mapControlButton}
+                  onPress={handleZoomIn}
+                >
+                  <Text style={styles.mapControlText}>+</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.mapControlButton}
+                  onPress={handleZoomOut}
+                >
+                  <Text style={styles.mapControlText}>-</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          ))}
-        </ScrollView>
-      )}
-    </View>
+            
+            {error ? (
+              <Text style={styles.errorText}>{error}</Text>
+            ) : (
+              <div
+                ref={mapRef}
+                style={{
+                  width: '100%',
+                  height: 300,
+                  borderRadius: 8,
+                  overflow: 'hidden'
+                }}
+              />
+            )}
+            <Text style={styles.mapInstructions}>
+              Use Ctrl + Scroll to zoom the map, or the +/- buttons above.
+            </Text>
+          </View>
+        )}
+        
+        {/* Location info */}
+        {userLocation && (
+          <View style={styles.locationInfo}>
+            <Text style={styles.locationText}>
+              {error ? "Using default location" : "Using your current location"}
+            </Text>
+            <TouchableOpacity 
+              style={styles.refreshButton}
+              onPress={() => {
+                if (userLocation) {
+                  fetchNearbyBoxes(userLocation.latitude, userLocation.longitude);
+                }
+              }}
+            >
+              <Text style={styles.refreshText}>Refresh</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        
+        {/* Nearby Donation Boxes List */}
+        <Text style={styles.sectionHeader}>
+          Nearby Donation Boxes </Text>
+        
+        {boxes.length === 0 && !loading ? (
+          <Text style={styles.noBoxesText}>No donation boxes found nearby.</Text>
+        ) : (
+          <View style={styles.scrollContainer}>
+            <ScrollView 
+              style={styles.boxesContainer}
+              contentContainerStyle={styles.boxesContentContainer}
+              showsVerticalScrollIndicator={true}
+              persistentScrollbar={true}
+              alwaysBounceVertical={true}
+              scrollEventThrottle={16}
+              nestedScrollEnabled={true}
+            >
+              {boxes.map((box) => (
+                <View key={box._id || Math.random().toString()} style={styles.boxCard}>
+                  <Text style={styles.boxName}>{box.name}</Text>
+                  <Text style={styles.boxDistance}>{box.distance}</Text>
+                  <Text style={styles.boxAddress}>{box.address}</Text>
+                  
+                  <TouchableOpacity 
+                    style={styles.directionsButton}
+                    onPress={() => openDirections(
+                      box.location.coordinates[1],
+                      box.location.coordinates[0],
+                      box.name
+                    )}
+                  >
+                    <Text style={styles.directionsText}>Directions</Text>
+                  </TouchableOpacity>
+                  
+                  <View style={styles.divider} />
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+      </View>
+    </ScrollView>
   );
 }
 
-// Styles remain the same as in your original code
 const styles = StyleSheet.create({
+  mainScrollView: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  mainScrollViewContent: {
+    flexGrow: 1,
+  },
   container: {
     flex: 1,
     padding: 20,
@@ -360,6 +476,40 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 20
   },
+  searchContainer: {
+    marginBottom: 20,
+    position: 'relative',
+    zIndex: 10
+  },
+  searchInput: {
+    height: 40,
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    backgroundColor: '#fff'
+  },
+  searchResultsContainer: {
+    position: 'absolute',
+    top: 40,
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 8,
+    zIndex: 1000,
+    maxHeight: 200,
+    overflow: 'hidden'
+  },
+  searchResultsScroll: {
+    maxHeight: 200
+  },
+  searchResultItem: {
+    padding: 10,
+    borderBottomColor: '#eee',
+    borderBottomWidth: 1
+  },
   mapContainer: {
     marginBottom: 20,
     borderRadius: 8,
@@ -367,13 +517,45 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#eee'
   },
+  mapHeaderContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    paddingBottom: 5
+  },
   mapLabel: {
     fontWeight: 'bold',
     fontSize: 16,
-    marginBottom: 10,
     color: '#000',
-    paddingHorizontal: 10,
-    paddingTop: 10
+  },
+  mapControlsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  mapControlButton: {
+    width: 30,
+    height: 30,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+    borderWidth: 1,
+    borderColor: '#ddd'
+  },
+  mapControlText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333'
+  },
+  mapInstructions: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    paddingVertical: 5
   },
   divider: {
     height: 1,
@@ -386,8 +568,21 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     color: '#000'
   },
+  scrollContainer: {
+    flex: 1,
+    height: Platform.OS === 'web' ? 350 : '60%',
+    borderWidth: 1,
+    borderColor: '#eee',
+    borderRadius: 8,
+    overflow: 'hidden'
+  },
   boxesContainer: {
-    flex: 1
+    flex: 1,
+    height: '100%'
+  },
+  boxesContentContainer: {
+    paddingVertical: 10,
+    paddingHorizontal: 5
   },
   boxCard: {
     marginBottom: 15,
@@ -412,7 +607,7 @@ const styles = StyleSheet.create({
     fontSize: 14
   },
   directionsButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#000',
     padding: 10,
     borderRadius: 5,
     alignSelf: 'flex-start',
@@ -437,7 +632,7 @@ const styles = StyleSheet.create({
     borderRadius: 5
   },
   refreshText: {
-    color: '#007AFF',
+    color: '#000',
     fontSize: 12,
     fontWeight: 'bold'
   },

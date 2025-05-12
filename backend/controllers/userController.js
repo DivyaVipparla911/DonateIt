@@ -34,6 +34,7 @@ const addDonation = async (req, res) =>{
     donationCategory,
     donationDescription,
     donorAddress,
+    pickupTime,
     donationPhotos} = req.body;
   try {
     console.log("adding donation");
@@ -47,6 +48,7 @@ const addDonation = async (req, res) =>{
             category: donationCategory,
             description: donationDescription,
             address: donorAddress,
+            availability: pickupTime,
             images: donationPhotos || [],
             status: 'pending',
           });
@@ -65,6 +67,7 @@ const addEvent = async (req, res) =>{
       const { uid, email } = decodedToken;
       console.log("saving event to mongo db", items_accepted);
       const newEvent = new Event({
+            email: email,
             organizer_id: uid,
             name: name,
             description: description,

@@ -12,11 +12,13 @@ const sendUpdateEmail = (toEmail, donation) => {
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: toEmail,
-    subject: 'Your Donation Has Been Updated',
+    subject: 'Your Pickup request Has Been Updated',
     text: `
 Hi,
 
-Your donation "${donation.name}" has been updated.
+Your request for "${donation.description}" has been updated. 
+It will be picked by "${donation.assignee}". 
+Details are mentioned below.
 
 Status: ${donation.status}
 Assignee: ${donation.assignee}
@@ -43,7 +45,7 @@ const sendDeleteEmail = (toEmail, donation) => {
     text: `
 Hi,
 
-Your donation "${donation.name}" has been deleted.
+Your donation "${donation.description}" has been deleted.
 
 Thank you for your contribution!
     `,
@@ -58,4 +60,28 @@ Thank you for your contribution!
   });
 };
 
-module.exports = { sendUpdateEmail, sendDeleteEmail };
+
+const sendDeleteEventEmail = (toEmail, event) => {
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: toEmail,
+    subject: 'Your Donation Has Been Deleted',
+    text: `
+Hi,
+
+Your event "${event.name}" has been deleted.
+
+Thank you for your contribution!
+    `,
+  };
+
+  transporter.sendMail(mailOptions, (error, info) => {
+    if (error) {
+      console.error('Error sending delete email:', error);
+    } else {
+      console.log('Delete email sent:', info.response);
+    }
+  });
+};
+
+module.exports = { sendUpdateEmail, sendDeleteEmail, sendDeleteEventEmail };

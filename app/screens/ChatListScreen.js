@@ -25,6 +25,7 @@ const ChatListScreen = ({ route }) => {
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [usersData, setUsersData] = useState({});
   const { user } = useUserContext();
   const navigation = useNavigation();
 
@@ -32,6 +33,20 @@ const ChatListScreen = ({ route }) => {
   const getChatKey = (participants) => {
     return participants.sort().join('_');
   };
+
+  // Fetch all users data
+  useEffect(() => {
+    const usersRef = collection(db, "users");
+    const unsubscribeUsers = onSnapshot(usersRef, (snapshot) => {
+      const users = {};
+      snapshot.forEach(doc => {
+        users[doc.id] = doc.data();
+      });
+      setUsersData(users);
+    });
+
+    return () => unsubscribeUsers();
+  }, []);
 
   // Check for existing chat between current user and other user
   const checkExistingChat = async (otherUserId) => {
@@ -50,7 +65,7 @@ const ChatListScreen = ({ route }) => {
           return {
             id: doc.id,
             ...data,
-            participants: data.participants // Ensure we return the original order
+            participants: data.participants
           };
         }
       }
@@ -71,7 +86,7 @@ const ChatListScreen = ({ route }) => {
         return {
           chatId: existingChat.id,
           otherUserId,
-          otherUserName: existingChat.participantInfo?.[otherUserId]?.name || otherUserName,
+          otherUserName: usersData[otherUserId]?.name || otherUserName, // Use fresh user data
           eventName: existingChat.eventName || eventName
         };
       }
@@ -85,8 +100,8 @@ const ChatListScreen = ({ route }) => {
             photoURL: user.photoURL || null
           },
           [otherUserId]: {
-            name: otherUserName,
-            photoURL: null
+            name: usersData[otherUserId]?.name || otherUserName, // Use fresh user data
+            photoURL: usersData[otherUserId]?.photoURL || null
           }
         },
         eventId,
@@ -94,7 +109,7 @@ const ChatListScreen = ({ route }) => {
         lastMessage: "",
         lastMessageAt: new Date(),
         createdAt: new Date(),
-        chatKey: getChatKey([user.uid, otherUserId]) // Store deduplication key
+        chatKey: getChatKey([user.uid, otherUserId])
       };
 
       const newChatRef = doc(collection(db, "chats"));
@@ -103,7 +118,7 @@ const ChatListScreen = ({ route }) => {
       return {
         chatId: newChatRef.id,
         otherUserId,
-        otherUserName,
+        otherUserName: usersData[otherUserId]?.name || otherUserName, // Use fresh user data
         eventName
       };
     } catch (error) {
@@ -132,7 +147,7 @@ const ChatListScreen = ({ route }) => {
       );
 
       unsubscribe = onSnapshot(q, (snapshot) => {
-        const chatMap = new Map(); // Using chatKey for deduplication
+        const chatMap = new Map();
 
         snapshot.docs.forEach((doc) => {
           const data = doc.data();
@@ -140,7 +155,6 @@ const ChatListScreen = ({ route }) => {
           const otherUserId = participants.find(id => id !== user.uid);
           const chatKey = data.chatKey || getChatKey(participants);
 
-          // Only keep the most recent chat for each participant pair
           const existingChat = chatMap.get(chatKey);
           const currentLastMessageAt = data.lastMessageAt?.toDate() || new Date(0);
 
@@ -150,9 +164,12 @@ const ChatListScreen = ({ route }) => {
               lastMessage: data.lastMessage || "No messages yet",
               lastMessageAt: currentLastMessageAt,
               otherUserId,
-              otherUserName: data.participantInfo?.[otherUserId]?.name || 
+              otherUserName: usersData[otherUserId]?.name || // Use fresh user data
+                            data.participantInfo?.[otherUserId]?.name ||
                             (user.role === "organizer" ? "Attendee" : "Organizer"),
-              otherUserPhoto: data.participantInfo?.[otherUserId]?.photoURL || null,
+              otherUserPhoto: usersData[otherUserId]?.photoURL || // Use fresh user data
+                            data.participantInfo?.[otherUserId]?.photoURL ||
+                            null,
               eventName: data.eventName || "Unknown Event",
               participants,
               chatKey
@@ -160,7 +177,6 @@ const ChatListScreen = ({ route }) => {
           }
         });
 
-        // Convert to array and sort by last message time
         const uniqueChats = Array.from(chatMap.values()).sort(
           (a, b) => b.lastMessageAt - a.lastMessageAt
         );
@@ -183,7 +199,7 @@ const ChatListScreen = ({ route }) => {
     }
 
     return unsubscribe;
-  }, [user]);
+  }, [user, usersData]); // Add usersData to dependencies
 
   // Fetch on focus and initial load
   useFocusEffect(
@@ -202,17 +218,15 @@ const ChatListScreen = ({ route }) => {
     navigation.navigate('ChatScreen', {
       chatId: chat.id,
       otherUserId: chat.otherUserId,
-      otherUserName: chat.otherUserName,
+      otherUserName: usersData[chat.otherUserId]?.name || chat.otherUserName, // Use fresh user data
       eventName: chat.eventName,
       isOrganizer: user.role === "organizer"
     });
   };
 
-
-
   const onRefresh = () => {
     setRefreshing(true);
-    setRefreshing(false);
+    fetchChats();
   };
 
   // Filter chats based on search query
@@ -246,6 +260,7 @@ const ChatListScreen = ({ route }) => {
           onPress={() => {
             setError(null);
             setLoading(true);
+            fetchChats();
           }}
         >
           <Text style={styles.retryButtonText}>Try Again</Text>
@@ -258,14 +273,14 @@ const ChatListScreen = ({ route }) => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
       
-      {/* <View style={styles.header}>
-        <Text style={styles.headerTitle}>Messages</Text>
+      <View style={styles.header}>
+        {/* <Text style={styles.headerTitle}>Messages</Text>
         <TouchableOpacity onPress={() => navigation.navigate('NewChat')}>
           <Ionicons name="create-outline" size={24} color="#007AFF" />
-        </TouchableOpacity>
-      </View> */}
+        </TouchableOpacity> */}
+      </View>
       
-      {/* <View style={styles.searchContainer}>
+      <View style={styles.searchContainer}>
         <Ionicons name="search" size={20} color="#8E8E93" style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
@@ -274,10 +289,10 @@ const ChatListScreen = ({ route }) => {
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
-      </View> */}
+      </View>
       
       <FlatList
-        data={filteredChats}  // Use filtered chats instead of all chats
+        data={filteredChats}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <TouchableOpacity 

@@ -14,6 +14,25 @@ const deleteEvents = async (req, res) =>{
       return res.status(404).json({ message: 'Event not found' });
     }
     res.status(200).json({ message: 'Event deleted successfully' });
+    if (deletedEvent.email) {
+    sendDeleteEmail(deletedEvent.email, deletedEvent);
+  }
+  } catch (error) {
+    console.error('Error deleting event:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+}
+
+const deleteDonationBoxes = async (req, res) =>{
+    const { id } = req.params;
+
+  try {
+    const deletedDonationBox = await DonationBox.findByIdAndDelete(id);
+    if (!deletedDonationBox) {
+      return res.status(404).json({ message: 'DonationBox not found' });
+    }
+    res.status(200).json({ message: 'DonationBox deleted successfully' });
+
   } catch (error) {
     console.error('Error deleting event:', error);
     res.status(500).json({ message: 'Server error' });
@@ -22,16 +41,16 @@ const deleteEvents = async (req, res) =>{
 
 const deleteDonations = async (req, res) =>{
   const { id } = req.params;
-  const { name, email, description, address, status, assignee, dateTime } = req.body;
 try {
-  const deletedEvent = await Donation.findByIdAndDelete(id);
-  if (!deletedEvent) {
+  console.log("delete donation");
+  const deletedDonation = await Donation.findByIdAndDelete(id);
+  if (!deletedDonation) {
     return res.status(404).json({ message: 'Donation not found' });
   }
   res.status(200).json({ message: 'Donation deleted successfully' });
 
-  if (deletedEvent.email) {
-    sendDeleteEmail(deletedEvent.email, deletedEvent);
+  if (deletedDonation.email) {
+    sendDeleteEmail(deletedDonation.email, deletedDonation);
   }
 
 } catch (error) {
@@ -69,33 +88,74 @@ const editDonations = async (req, res) => {
 };
 
 const addDonationBoxes = async (req, res) => {
- const { name, description, address, availableHours, itemsAccepted } = req.body;
+  const {
+    name,
+    address,
+    latitude,
+    longitude,
+    type,
+    hours,
+    phone
+  } = req.body;
 
-  // Dummy geo-coding — replace with real API if needed
-  const fakeCoordinates = [77.5946, 12.9716]; // [longitude, latitude]
+  // Basic validation
+  if (!name || !address || !latitude || !longitude || !type || !hours || !phone) {
+    return res.status(400).json({ 
+      success: false,
+      message: "All fields are required" 
+    });
+  }
 
   try {
+    // Get the next sequential ID
+    const nextId = await getNextDonationBoxId();
+
+    // Create new donation box
     const donationBox = new DonationBox({
+      id: nextId,  // Auto-assigned sequential number
       name,
-      description,
-      location: {
-        type: 'Point',
-        coordinates: fakeCoordinates
+      address,
+      coordinates: {
+        latitude: Number(latitude),
+        longitude: Number(longitude)
       },
-      availableHours,
-      itemsAccepted
+      type,
+      hours,
+      phone
     });
 
+    await donationBox.save();
 
-    await donation.save();
+    res.status(201).json({
+      success: true,
+      message: "Donation box added successfully",
+      data: donationBox
+    });
 
-    res.status(201).json({ message: "Donation submitted successfully", donation });
   } catch (error) {
-    console.error('Error saving donation:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error adding donation box:', error);
+    
+    // Handle duplicate ID case (though unlikely with our sequential approach)
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "Duplicate ID detected, please try again"
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
   }
 };
 
+// Helper function to get the next sequential ID
+const getNextDonationBoxId = async () => {
+  const lastBox = await DonationBox.findOne().sort({ id: -1 });
+  return lastBox ? lastBox.id + 1 : 1;
+};
 
 
-module.exports = { deleteEvents, deleteDonations, editDonations, addDonationBoxes};
+module.exports = { deleteEvents, deleteDonations, editDonations, addDonationBoxes, deleteDonationBoxes};

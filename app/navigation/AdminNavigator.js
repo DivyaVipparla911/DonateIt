@@ -13,13 +13,13 @@ const AdminTabNavigator = () => {
       <Tab.Navigator
         screenOptions={({ route }) => ({
           tabBarIcon: ({ focused, color, size }) => {
-            let iconName;
+           let iconName;
             if (route.name === 'ManageEvents') {
-              iconName = focused ? 'home' : 'home-outline';
+              iconName = focused ? 'calendar' : 'calendar-outline';
             } else if (route.name === 'ManageDonations') {
               iconName = focused ? 'people' : 'people-outline';
             } else if (route.name === "ManageBoxes") {
-            iconName = focused ? "add-circle" : "add-circle-outline";
+            iconName = focused ? "cube" : "cube-outline";
             }  else if (route.name === "Chat") {
             iconName = focused ? "chatbubble" : "chatbubble-outline";
             } else if (route.name === 'AdminProfile') {
