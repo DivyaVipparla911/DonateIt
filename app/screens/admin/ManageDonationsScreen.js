@@ -266,7 +266,7 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.welcomeTitle}>Donation Management</Text>
+      <Text style={styles.welcomeTitle}>Pickup Request Management</Text>
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#333" />

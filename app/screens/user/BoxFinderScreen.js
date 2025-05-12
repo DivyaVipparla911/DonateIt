@@ -21,7 +21,9 @@ export default function MapScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [mapZoom, setMapZoom] = useState(13);
   const mapRef = useRef(null);
+  const mapInstance = useRef(null);
   const autocompleteService = useRef(null);
   const placesService = useRef(null);
 
@@ -102,9 +104,11 @@ export default function MapScreen() {
           fetchNearbyBoxes(newLocation.latitude, newLocation.longitude);
           
           // Center map on selected location
-          if (mapRef.current && window.google?.maps) {
-            const map = new window.google.maps.Map(mapRef.current);
-            map.setCenter(newLocation);
+          if (mapInstance.current) {
+            mapInstance.current.setCenter({
+              lat: newLocation.latitude,
+              lng: newLocation.longitude
+            });
           }
         }
       }
@@ -156,7 +160,7 @@ export default function MapScreen() {
       
       const sortedBoxes = boxesWithDistance.sort((a, b) => 
         parseFloat(a.distance) - parseFloat(b.distance)
-      ).slice(0, 10); // Ensure we display maximum 10 results
+      ).slice(0, 10); 
       
       setBoxes(sortedBoxes);
       
@@ -196,14 +200,41 @@ export default function MapScreen() {
     Linking.openURL(url);
   };
 
+  // Handle map zoom controls
+  const handleZoomIn = () => {
+    if (mapInstance.current) {
+      const currentZoom = mapInstance.current.getZoom();
+      mapInstance.current.setZoom(currentZoom + 1);
+      setMapZoom(currentZoom + 1);
+    }
+  };
+
+  const handleZoomOut = () => {
+    if (mapInstance.current) {
+      const currentZoom = mapInstance.current.getZoom();
+      if (currentZoom > 1) {
+        mapInstance.current.setZoom(currentZoom - 1);
+        setMapZoom(currentZoom - 1);
+      }
+    }
+  };
+
   // Initialize Google Maps
   const initializeMap = (boxesToDisplay) => {
     if (!mapRef.current || !window.google?.maps || !userLocation) return;
     
     const map = new window.google.maps.Map(mapRef.current, {
       center: { lat: userLocation.latitude, lng: userLocation.longitude },
-      zoom: 13
+      zoom: mapZoom,
+      scrollwheel: true, // Enable scroll wheel zooming
+      gestureHandling: 'cooperative', // Makes the map require Ctrl+Scroll to zoom, allowing normal page scrolling
+      zoomControl: false, // We'll add custom zoom controls
+      mapTypeControl: true,
+      streetViewControl: false,
+      fullscreenControl: true
     });
+    
+    mapInstance.current = map;
     
     // Add user location marker
     new window.google.maps.Marker({
@@ -274,122 +305,157 @@ export default function MapScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.header}>DonateIt</Text>
-      <Text style={styles.subheader}>Donation boxes near you</Text>
-      
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search for a location..."
-          value={searchQuery}
-          onChangeText={handleSearchChange}
-        />
-        {showSearchResults && (
-          <View style={styles.searchResultsContainer}>
+    <ScrollView 
+      style={styles.mainScrollView}
+      contentContainerStyle={styles.mainScrollViewContent}
+      showsVerticalScrollIndicator={true}
+      persistentScrollbar={true}
+    >
+      <View style={styles.container}>
+        <Text style={styles.header}>DonateIt</Text>
+        <Text style={styles.subheader}>Donation boxes near you</Text>
+        
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search for a location..."
+            value={searchQuery}
+            onChangeText={handleSearchChange}
+          />
+          {showSearchResults && (
+            <View style={styles.searchResultsContainer}>
+              <ScrollView 
+                style={styles.searchResultsScroll}
+                keyboardShouldPersistTaps="handled"
+                nestedScrollEnabled={true}
+              >
+                {searchResults.map((result) => (
+                  <TouchableOpacity
+                    key={result.place_id}
+                    style={styles.searchResultItem}
+                    onPress={() => handleLocationSelect(result)}
+                  >
+                    <Text>{result.description}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+        </View>
+        
+        {/* Google Maps Integration */}
+        {Platform.OS === "web" && (
+          <View style={styles.mapContainer}>
+            <View style={styles.mapHeaderContainer}>
+              <Text style={styles.mapLabel}>Donation Boxes Map</Text>
+              <View style={styles.mapControlsContainer}>
+                <TouchableOpacity 
+                  style={styles.mapControlButton}
+                  onPress={handleZoomIn}
+                >
+                  <Text style={styles.mapControlText}>+</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.mapControlButton}
+                  onPress={handleZoomOut}
+                >
+                  <Text style={styles.mapControlText}>-</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            
+            {error ? (
+              <Text style={styles.errorText}>{error}</Text>
+            ) : (
+              <div
+                ref={mapRef}
+                style={{
+                  width: '100%',
+                  height: 300,
+                  borderRadius: 8,
+                  overflow: 'hidden'
+                }}
+              />
+            )}
+            <Text style={styles.mapInstructions}>
+              Use Ctrl + Scroll to zoom the map, or the +/- buttons above.
+            </Text>
+          </View>
+        )}
+        
+        {/* Location info */}
+        {userLocation && (
+          <View style={styles.locationInfo}>
+            <Text style={styles.locationText}>
+              {error ? "Using default location" : "Using your current location"}
+            </Text>
+            <TouchableOpacity 
+              style={styles.refreshButton}
+              onPress={() => {
+                if (userLocation) {
+                  fetchNearbyBoxes(userLocation.latitude, userLocation.longitude);
+                }
+              }}
+            >
+              <Text style={styles.refreshText}>Refresh</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        
+        {/* Nearby Donation Boxes List */}
+        <Text style={styles.sectionHeader}>
+          Nearby Donation Boxes </Text>
+        
+        {boxes.length === 0 && !loading ? (
+          <Text style={styles.noBoxesText}>No donation boxes found nearby.</Text>
+        ) : (
+          <View style={styles.scrollContainer}>
             <ScrollView 
-              style={styles.searchResultsScroll}
-              keyboardShouldPersistTaps="handled"
+              style={styles.boxesContainer}
+              contentContainerStyle={styles.boxesContentContainer}
+              showsVerticalScrollIndicator={true}
+              persistentScrollbar={true}
+              alwaysBounceVertical={true}
+              scrollEventThrottle={16}
               nestedScrollEnabled={true}
             >
-              {searchResults.map((result) => (
-                <TouchableOpacity
-                  key={result.place_id}
-                  style={styles.searchResultItem}
-                  onPress={() => handleLocationSelect(result)}
-                >
-                  <Text>{result.description}</Text>
-                </TouchableOpacity>
+              {boxes.map((box) => (
+                <View key={box._id || Math.random().toString()} style={styles.boxCard}>
+                  <Text style={styles.boxName}>{box.name}</Text>
+                  <Text style={styles.boxDistance}>{box.distance}</Text>
+                  <Text style={styles.boxAddress}>{box.address}</Text>
+                  
+                  <TouchableOpacity 
+                    style={styles.directionsButton}
+                    onPress={() => openDirections(
+                      box.location.coordinates[1],
+                      box.location.coordinates[0],
+                      box.name
+                    )}
+                  >
+                    <Text style={styles.directionsText}>Directions</Text>
+                  </TouchableOpacity>
+                  
+                  <View style={styles.divider} />
+                </View>
               ))}
             </ScrollView>
           </View>
         )}
       </View>
-      
-      {/* Google Maps Integration */}
-      {Platform.OS === "web" && (
-        <View style={styles.mapContainer}>
-          <Text style={styles.mapLabel}>Donation Boxes Map</Text>
-          {error ? (
-            <Text style={styles.errorText}>{error}</Text>
-          ) : (
-            <div
-              ref={mapRef}
-              style={{
-                width: '100%',
-                height: 300,
-                borderRadius: 8,
-                overflow: 'hidden'
-              }}
-            />
-          )}
-        </View>
-      )}
-      
-      {/* Location info */}
-      {userLocation && (
-        <View style={styles.locationInfo}>
-          <Text style={styles.locationText}>
-            {error ? "Using default location" : "Using your current location"}
-          </Text>
-          <TouchableOpacity 
-            style={styles.refreshButton}
-            onPress={() => {
-              if (userLocation) {
-                fetchNearbyBoxes(userLocation.latitude, userLocation.longitude);
-              }
-            }}
-          >
-            <Text style={styles.refreshText}>Refresh</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-      
-      {/* Nearby Donation Boxes List */}
-      <Text style={styles.sectionHeader}>
-        Nearby Donation Boxes </Text>
-      
-      {boxes.length === 0 && !loading ? (
-        <Text style={styles.noBoxesText}>No donation boxes found nearby.</Text>
-      ) : (
-        <View style={styles.scrollContainer}>
-          <ScrollView 
-            style={styles.boxesContainer}
-            contentContainerStyle={styles.boxesContentContainer}
-            showsVerticalScrollIndicator={true}
-            persistentScrollbar={true}
-            alwaysBounceVertical={true}
-            scrollEventThrottle={16}
-          >
-            {boxes.map((box) => (
-              <View key={box._id || Math.random().toString()} style={styles.boxCard}>
-                <Text style={styles.boxName}>{box.name}</Text>
-                <Text style={styles.boxDistance}>{box.distance}</Text>
-                <Text style={styles.boxAddress}>{box.address}</Text>
-                
-                <TouchableOpacity 
-                  style={styles.directionsButton}
-                  onPress={() => openDirections(
-                    box.location.coordinates[1],
-                    box.location.coordinates[0],
-                    box.name
-                  )}
-                >
-                  <Text style={styles.directionsText}>Directions</Text>
-                </TouchableOpacity>
-                
-                <View style={styles.divider} />
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-      )}
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  mainScrollView: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  mainScrollViewContent: {
+    flexGrow: 1,
+  },
   container: {
     flex: 1,
     padding: 20,
@@ -451,13 +517,45 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#eee'
   },
+  mapHeaderContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    paddingBottom: 5
+  },
   mapLabel: {
     fontWeight: 'bold',
     fontSize: 16,
-    marginBottom: 10,
     color: '#000',
-    paddingHorizontal: 10,
-    paddingTop: 10
+  },
+  mapControlsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  mapControlButton: {
+    width: 30,
+    height: 30,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+    borderWidth: 1,
+    borderColor: '#ddd'
+  },
+  mapControlText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333'
+  },
+  mapInstructions: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    paddingVertical: 5
   },
   divider: {
     height: 1,

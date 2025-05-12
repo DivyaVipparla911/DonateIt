@@ -7,6 +7,8 @@ import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 
+const MAPS_KEY = "AIzaSyDSahTexUybVADs-MwPT4MNnWai_-kTr1I"; // Replace with your actual API key
+
 const ManageDonationBoxesScreen = () => {
   const [donationBoxes, setDonationBoxes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,12 +36,10 @@ const ManageDonationBoxesScreen = () => {
     placeId: null
   });
   const [isWebMapsLoaded, setIsWebMapsLoaded] = useState(false);
+  const [mapsLoadingError, setMapsLoadingError] = useState(false);
   
   const meetingPointRef = useRef(null);
-  const webAutocompleteRefs = {
-    meetingPoint: useRef(null)
-  };
-  const MAPS_KEY = "AIzaSyDw26V3Tw0g6tXKWX5ruHx8nAl6eJrn7vI"; 
+  const autocompleteInitialized = useRef(false);
 
   const fetchDonationBoxes = async () => {
     try {
@@ -58,57 +58,6 @@ const ManageDonationBoxesScreen = () => {
     fetchDonationBoxes();
   }, []);
 
- useEffect(() => {
-  if (Platform.OS === 'web' && isWebMapsLoaded) {
-    const initAutocomplete = () => {
-      try {
-        const meetingInput = document.getElementById('meeting-point-input');
-        if (meetingInput && !webAutocompleteRefs.meetingPoint.current) {
-          const options = {
-            types: ['geocode', 'establishment'],
-            componentRestrictions: { country: 'us' },
-            fields: ['formatted_address', 'geometry', 'place_id']
-          };
-
-          webAutocompleteRefs.meetingPoint.current = new window.google.maps.places.Autocomplete(
-            meetingInput,
-            options
-          );
-
-          webAutocompleteRefs.meetingPoint.current.addListener('place_changed', () => {
-            const place = webAutocompleteRefs.meetingPoint.current.getPlace();
-            if (!place.geometry) {
-              console.warn("No geometry available for place:", place);
-              return;
-            }
-
-            const location = {
-              address: place.formatted_address,
-              lat: place.geometry.location.lat(),
-              lng: place.geometry.location.lng(),
-              placeId: place.place_id
-            };
-
-            setMeetingPoint(location);
-            setFormData(prev => ({
-              ...prev,
-              address: place.formatted_address,
-              latitude: place.geometry.location.lat(),
-              longitude: place.geometry.location.lng()
-            }));
-          });
-        }
-      } catch (error) {
-        console.error('Autocomplete initialization error:', error);
-      }
-    };
-
-    // Add slight delay to ensure DOM is ready
-    const timer = setTimeout(initAutocomplete, 300);
-    return () => clearTimeout(timer);
-  }
-}, [isWebMapsLoaded]);
-
   useEffect(() => {
     if (Platform.OS === 'web') {
       if (window.google && window.google.maps) {
@@ -118,7 +67,6 @@ const ManageDonationBoxesScreen = () => {
 
       const scriptId = 'google-maps-script';
       if (document.getElementById(scriptId)) {
-        setIsWebMapsLoaded(true);
         return;
       }
 
@@ -129,12 +77,11 @@ const ManageDonationBoxesScreen = () => {
       script.defer = true;
       
       script.onload = () => {
-        console.log('Google Maps script loaded successfully');
         setIsWebMapsLoaded(true);
       };
       
       script.onerror = () => {
-        console.error('Failed to load Google Maps script');
+        setMapsLoadingError(true);
         Alert.alert('Error', 'Failed to load maps functionality');
       };
 
@@ -147,6 +94,68 @@ const ManageDonationBoxesScreen = () => {
       };
     }
   }, []);
+
+  useEffect(() => {
+    if (Platform.OS === 'web' && isWebMapsLoaded && isAddModalVisible) {
+      const timer = setTimeout(() => {
+        initWebAutocomplete();
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isWebMapsLoaded, isAddModalVisible]);
+
+  const initWebAutocomplete = () => {
+    try {
+      const meetingInput = document.getElementById('meeting-point-input');
+      
+      if (!meetingInput || autocompleteInitialized.current) return;
+      
+      const options = {
+        types: ['geocode', 'establishment'],
+        componentRestrictions: { country: 'us' },
+        fields: ['formatted_address', 'geometry', 'place_id', 'name']
+      };
+
+      const autocomplete = new window.google.maps.places.Autocomplete(
+        meetingInput,
+        options
+      );
+      
+      meetingPointRef.current = autocomplete;
+      autocompleteInitialized.current = true;
+
+      autocomplete.addListener('place_changed', () => {
+        const place = autocomplete.getPlace();
+        
+        if (!place.geometry) {
+          setErrors(prev => ({...prev, address: 'Invalid location selected'}));
+          return;
+        }
+        
+        const location = {
+          address: place.formatted_address || place.name,
+          lat: place.geometry.location.lat(),
+          lng: place.geometry.location.lng(),
+          placeId: place.place_id
+        };
+
+        setMeetingPoint(location);
+        setFormData(prev => ({
+          ...prev,
+          address: location.address,
+          latitude: location.lat.toString(),
+          longitude: location.lng.toString()
+        }));
+        
+        setErrors(prev => ({...prev, address: ''}));
+      });
+      
+    } catch (error) {
+      console.error('Autocomplete initialization error:', error);
+      setMapsLoadingError(true);
+    }
+  };
 
   const validateForm = () => {
     let valid = true;
@@ -162,8 +171,10 @@ const ManageDonationBoxesScreen = () => {
       valid = false;
     }
 
-    if (!meetingPoint.address) {
-      newErrors.address = 'Location is required';
+    if ((!meetingPoint.address && !formData.address) || 
+        (!meetingPoint.lat && !formData.latitude) || 
+        (!meetingPoint.lng && !formData.longitude)) {
+      newErrors.address = 'Valid location is required';
       valid = false;
     }
 
@@ -182,115 +193,50 @@ const ManageDonationBoxesScreen = () => {
   };
 
   const handleMeetingPointSelect = async (data, details = null) => {
-    let address, lat, lng, placeId;
+    if (!details) return;
     
-    if (Platform.OS === 'web') {
-      if (!details) return;
-      
-      address = details.description;
-      lat = details.geometry.location.lat();
-      lng = details.geometry.location.lng();
-      placeId = details.place_id;
-    } else {
-      if (!details) {
-        console.warn('No details for place:', data?.description);
-        return;
-      }
-      
-      address = data.description;
-      lat = details.geometry?.location?.lat || null;
-      lng = details.geometry?.location?.lng || null;
-      placeId = details.place_id;
-    }
+    const address = details.formatted_address || details.description || data?.description;
+    const lat = details.geometry?.location?.lat;
+    const lng = details.geometry?.location?.lng;
+    const placeId = details.place_id;
     
-    setMeetingPoint({ address, lat, lng, placeId });
+    if (!lat || !lng) return;
     
-    if (Platform.OS !== 'web' && meetingPointRef.current) {
-      meetingPointRef.current.setAddressText(address);
-      meetingPointRef.current.blur();
-    }
+    setMeetingPoint({
+      address,
+      lat,
+      lng,
+      placeId
+    });
     
     setFormData(prev => ({
       ...prev,
-      address: address,
-      latitude: lat,
-      longitude: lng
+      address,
+      latitude: lat.toString(),
+      longitude: lng.toString()
     }));
+    
+    setErrors(prev => ({...prev, address: ''}));
   };
-
-  const renderLocationInput = (label, key, value, onChangeText) => {
-    return (
-      <>
-        <Text style={styles.label}>{label}</Text>
-        <TextInput
-          id={`${key}-input`}
-          style={styles.input}
-          placeholder={`Enter ${label.toLowerCase()}`}
-          value={value}
-          onChangeText={onChangeText}
-          placeholderTextColor="#888"
-        />
-        {errors.address ? (
-          <Text style={styles.errorText}>{errors.address}</Text>
-        ) : null}
-      </>
-    );
-  };
-
- const renderMobileAutocomplete = (label, ref, onPress) => {
-  return (
-    <>
-      <Text style={styles.label}>{label}</Text>
-      <View style={styles.autocompleteWrapper}>
-        <GooglePlacesAutocomplete
-          placeholder={`Search ${label}`}
-          onPress={(data, details = null) => {
-            onPress(data, details);
-          }}
-          query={{
-            key: MAPS_KEY,
-            language: 'en',
-            components: 'country:us',
-            types: ['geocode', 'establishment']
-          }}
-          styles={{
-            textInput: [styles.input, { height: 50 }],
-            listView: styles.dropdown,
-            description: styles.placeDescription,
-            poweredContainer: { display: 'none' }
-          }}
-          ref={ref}
-          fetchDetails={true}
-          enablePoweredByContainer={false}
-          debounce={300}
-          keepResultsAfterBlur={false}
-          listViewDisplayed="auto"
-          renderRow={(item) => (
-            <View style={styles.placeItem}>
-              <Ionicons name="location-outline" size={18} color="#666" />
-              <Text style={styles.placeText}>{item.description}</Text>
-            </View>
-          )}
-          textInputProps={{
-            placeholderTextColor: '#999',
-            returnKeyType: 'search',
-            autoCorrect: false,
-            autoCapitalize: 'none'
-          }}
-        />
-      </View>
-    </>
-  );
-};
 
   const handleAddDonationBox = async () => {
     if (!validateForm()) return;
 
     try {
+      const latitude = meetingPoint.lat || parseFloat(formData.latitude);
+      const longitude = meetingPoint.lng || parseFloat(formData.longitude);
+      const address = meetingPoint.address || formData.address;
+      
+      if (!latitude || !longitude || !address) {
+        setErrors(prev => ({...prev, address: 'Valid location coordinates required'}));
+        return;
+      }
+      
       const donationBoxData = {
         ...formData,
-        latitude: meetingPoint.lat,
-        longitude: meetingPoint.lng
+        address,
+        latitude,
+        longitude
       };
 
       const response = await axios.post('http://localhost:5000/api/admin/donation-boxes', donationBoxData);
@@ -314,18 +260,27 @@ const ManageDonationBoxesScreen = () => {
       hours: '',
       phone: ''
     });
+    
     setMeetingPoint({
       address: '',
       lat: null,
       lng: null,
       placeId: null
     });
+    
     setErrors({
       name: '',
       address: '',
       type: '',
       hours: ''
     });
+    
+    if (Platform.OS === 'web') {
+      setTimeout(() => {
+        const meetingInput = document.getElementById('meeting-point-input');
+        if (meetingInput) meetingInput.value = '';
+      }, 100);
+    }
   };
 
   const deleteDonationBox = async () => {
@@ -454,18 +409,70 @@ const ManageDonationBoxesScreen = () => {
             ) : null}
 
             {Platform.OS === 'web' ? (
-              renderLocationInput(
-                'Location *',
-                'meeting-point',
-                meetingPoint.address,
-                (text) => setMeetingPoint(prev => ({ ...prev, address: text }))
-              )
+              <>
+                <Text style={styles.label}>Location * {mapsLoadingError && '(Maps functionality unavailable)'}</Text>
+                <input
+                  id="meeting-point-input"
+                  type="text"
+                  placeholder="Search location"
+                  disabled={mapsLoadingError}
+                  style={{
+                    width: '100%',
+                    padding: '15px',
+                    borderRadius: '8px',
+                    border: '1px solid #eee',
+                    marginBottom: '15px',
+                    backgroundColor: mapsLoadingError ? '#f1f1f1' : '#f8f8f8'
+                  }}
+                />
+                {meetingPoint.address && (
+                  <Text style={styles.selectedLocationText}>
+                    Selected: {meetingPoint.address}
+                  </Text>
+                )}
+                {errors.address ? (
+                  <Text style={styles.errorText}>{errors.address}</Text>
+                ) : null}
+              </>
             ) : (
-              renderMobileAutocomplete(
-                'Location *',
-                meetingPointRef,
-                handleMeetingPointSelect
-              )
+              <>
+                <Text style={styles.label}>Location *</Text>
+                <GooglePlacesAutocomplete
+                  placeholder="Search location"
+                  onPress={handleMeetingPointSelect}
+                  query={{
+                    key: MAPS_KEY,
+                    language: 'en',
+                    components: 'country:us',
+                    types: ['geocode', 'establishment']
+                  }}
+                  styles={{
+                    textInput: [styles.input, { height: 50 }],
+                    listView: styles.dropdown,
+                    description: styles.placeDescription,
+                    poweredContainer: { display: 'none' }
+                  }}
+                  ref={meetingPointRef}
+                  fetchDetails={true}
+                  enablePoweredByContainer={false}
+                  debounce={300}
+                  renderRow={(item) => (
+                    <View style={styles.placeItem}>
+                      <Ionicons name="location-outline" size={18} color="#666" />
+                      <Text style={styles.placeText}>{item.description}</Text>
+                    </View>
+                  )}
+                  textInputProps={{
+                    placeholderTextColor: '#999',
+                    returnKeyType: 'search',
+                    autoCorrect: false,
+                    autoCapitalize: 'none'
+                  }}
+                />
+                {errors.address ? (
+                  <Text style={styles.errorText}>{errors.address}</Text>
+                ) : null}
+              </>
             )}
 
             <Text style={styles.label}>Type *</Text>
@@ -516,7 +523,7 @@ const ManageDonationBoxesScreen = () => {
 };
 
 const styles = StyleSheet.create({
-    container: {
+  container: {
     flex: 1,
     padding: 20,
     backgroundColor: '#fff',
@@ -638,9 +645,6 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     color: '#000',
   },
-  formContainer: {
-    flex: 1,
-  },
   input: {
     backgroundColor: '#f8f8f8',
     padding: 15,
@@ -648,70 +652,6 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     fontSize: 16,
     color: '#000',
-    borderWidth: 1,
-    borderColor: '#eee',
-  },
-  addressContainer: {
-    marginBottom: 15,
-    zIndex: 1000,
-  },
-  googleContainer: {
-    position: 'relative',
-    width: '100%',
-  },
-  googleInput: {
-    backgroundColor: '#f8f8f8',
-    paddingHorizontal: 15,
-    paddingVertical: Platform.OS === 'ios' ? 15 : 10,
-    borderRadius: 8,
-    fontSize: 16,
-    height: 50,
-    marginTop: 0,
-    color: '#000',
-    borderWidth: 1,
-    borderColor: '#eee',
-  },
-  googleList: {
-    backgroundColor: '#fff',
-    marginTop: 5,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#eee',
-  },
-  googleDescription: {
-    fontSize: 14,
-    padding: 10,
-    color: '#333',
-  },
-  searchIcon: {
-    marginLeft: 10,
-    marginRight: 5,
-    alignSelf: 'center',
-  },
-  coordinateContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 15,
-  },
-  coordinateWrapper: {
-    width: '48%',
-  },
-  coordinateLabel: {
-    fontSize: 14,
-    color: '#555',
-    marginBottom: 5,
-  },
-  coordinateInput: {
-    backgroundColor: '#f8f8f8',
-    padding: 15,
-    borderRadius: 8,
-    fontSize: 16,
-    color: '#333',
     borderWidth: 1,
     borderColor: '#eee',
   },
@@ -757,32 +697,38 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   autocompleteWrapper: {
-  zIndex: 1000, // Ensure it appears above other elements
-  marginBottom: 15,
-},
-dropdown: {
-  backgroundColor: '#fff',
-  borderWidth: 1,
-  borderColor: '#ddd',
-  borderRadius: 8,
-  marginTop: 5,
-  maxHeight: 200,
-},
-placeItem: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  padding: 10,
-  borderBottomWidth: 1,
-  borderBottomColor: '#eee',
-},
-placeText: {
-  marginLeft: 10,
-  color: '#333',
-},
-placeDescription: {
-  fontSize: 14,
-  color: '#666',
-},
+    zIndex: 1000,
+    marginBottom: 15,
+  },
+  dropdown: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    marginTop: 5,
+    maxHeight: 200,
+  },
+  placeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  placeText: {
+    marginLeft: 10,
+    color: '#333',
+  },
+  placeDescription: {
+    fontSize: 14,
+    color: '#666',
+  },
+  selectedLocationText: {
+    fontSize: 14,
+    color: '#007bff',
+    marginTop: -10,
+    marginBottom: 15,
+  },
 });
 
 export default ManageDonationBoxesScreen;

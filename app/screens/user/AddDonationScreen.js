@@ -424,7 +424,7 @@ const AddDonationScreen = () => {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.contentContainer}>
-        <Text style={styles.headerText}>Donate Items</Text>
+        <Text style={styles.headerText}>Start your pickup Request</Text>
 
         {/* Category selection */}
         <View style={styles.inputGroup}>

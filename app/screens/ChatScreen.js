@@ -8,8 +8,7 @@ import {
   KeyboardAvoidingView, 
   Platform,
   StyleSheet,
-  Image,
-  TouchableOpacity
+  Alert
 } from 'react-native';
 import { auth, db } from '../firebaseConfig';
 import { 
@@ -23,31 +22,47 @@ import {
   setDoc,
   serverTimestamp 
 } from 'firebase/firestore';
-import { Ionicons } from '@expo/vector-icons'; // Make sure to install this package
 
 const ChatScreen = ({ route, navigation }) => {
-  const { chatId, otherUserId, otherUserName, eventName } = route.params;
+  const { chatId, otherUserId, eventName } = route.params;
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const [usersData, setUsersData] = useState({});
   const flatListRef = useRef(null);
 
+  // Fetch messages and user data
   useEffect(() => {
+    // 1. Fetch messages for this chat
     const messagesRef = collection(db, 'chats', chatId, 'messages');
-    const q = query(messagesRef, orderBy('createdAt', 'asc'));
+    const messagesQuery = query(messagesRef, orderBy('createdAt', 'asc'));
     
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    const unsubscribeMessages = onSnapshot(messagesQuery, (querySnapshot) => {
       const msgs = [];
       querySnapshot.forEach((doc) => {
         msgs.push({ id: doc.id, ...doc.data() });
       });
       setMessages(msgs);
       
+      // Scroll to bottom after short delay
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     });
 
-    return () => unsubscribe();
+    // 2. Fetch all users data - specifically looking for 'name' field
+    const usersRef = collection(db, 'users');
+    const unsubscribeUsers = onSnapshot(usersRef, (snapshot) => {
+      const users = {};
+      snapshot.forEach(doc => {
+        users[doc.id] = doc.data(); // Store all user data
+      });
+      setUsersData(users);
+    });
+
+    return () => {
+      unsubscribeMessages();
+      unsubscribeUsers();
+    };
   }, [chatId]);
 
   const handleSendMessage = async () => {
@@ -56,15 +71,12 @@ const ChatScreen = ({ route, navigation }) => {
     try {
       const messagesRef = collection(db, 'chats', chatId, 'messages');
       
-      // Create the message document
       await addDoc(messagesRef, {
         text: newMessage,
         senderId: auth.currentUser.uid,
-        senderName: auth.currentUser.displayName || 'User',
         createdAt: serverTimestamp()
       });
   
-      // Update last message in chat document
       const chatRef = doc(db, 'chats', chatId);
       await setDoc(chatRef, {
         lastMessage: newMessage,
@@ -78,12 +90,10 @@ const ChatScreen = ({ route, navigation }) => {
     }
   };
 
-  const handleBackToList = () => {
-    navigation.navigate('ChatList');
-  };
-
   const renderMessage = ({ item }) => {
     const isCurrentUser = item.senderId === auth.currentUser?.uid;
+    const senderData = usersData[item.senderId] || {};
+    const displayName = senderData.name || 'Unknown';
     const messageTime = item.createdAt?.toDate 
       ? item.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       : '...';
@@ -94,11 +104,7 @@ const ChatScreen = ({ route, navigation }) => {
         isCurrentUser ? styles.currentUserMessage : styles.otherUserMessage
       ]}>
         {!isCurrentUser && (
-          <View style={styles.messageHeader}>
-            {otherUserId === item.senderId && (
-              <Text style={styles.senderName}>{otherUserName}</Text>
-            )}
-          </View>
+          <Text style={styles.senderName}>{displayName}</Text>
         )}
         <Text style={styles.messageText}>{item.text}</Text>
         <Text style={styles.messageTime}>{messageTime}</Text>
@@ -113,12 +119,11 @@ const ChatScreen = ({ route, navigation }) => {
       keyboardVerticalOffset={90}
     >
       <View style={styles.header}>
-        {/* <TouchableOpacity onPress={handleBackToList} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#007AFF" />
-        </TouchableOpacity> */}
         <View style={styles.headerTextContainer}>
           <Text style={styles.headerTitle}>{eventName}</Text>
-          <Text style={styles.headerSubtitle}>Chat with {otherUserName}</Text>
+          <Text style={styles.headerSubtitle}>
+            Chat with {usersData[otherUserId]?.name || 'User'}
+          </Text>
         </View>
       </View>
       
@@ -169,10 +174,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
-  backButton: {
-    marginRight: 12,
-    padding: 4,
-  },
   headerTextContainer: {
     flex: 1,
   },
@@ -187,6 +188,7 @@ const styles = StyleSheet.create({
   },
   messagesList: {
     padding: 16,
+    paddingBottom: 80,
   },
   messageContainer: {
     padding: 12,
@@ -204,15 +206,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#ECECEC',
     borderBottomLeftRadius: 0,
   },
-  messageHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
   senderName: {
     fontWeight: 'bold',
     color: '#333',
     fontSize: 14,
+    marginBottom: 4,
   },
   messageText: {
     fontSize: 16,
@@ -231,6 +229,10 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#eee',
     backgroundColor: '#fff',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
   input: {
     flex: 1,

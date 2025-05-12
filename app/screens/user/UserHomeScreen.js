@@ -326,9 +326,9 @@ export default function UserHomeScreen({ navigation }) {
     <View style={styles.container}>
       <View style={styles.headerContainer}>
         <Text style={styles.header}>Upcoming Events</Text>
-        <TouchableOpacity>
+        {/* <TouchableOpacity>
           <Ionicons name="search" size={24} color="#000" />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
       
       {events.length === 0 ? (
