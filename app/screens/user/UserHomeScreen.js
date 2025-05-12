@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Button, FlatList, ActivityIndicator, TouchableOpacity, Alert, StyleSheet } from 'react-native';
+import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, Alert, StyleSheet } from 'react-native';
 import { auth, db } from '../../firebaseConfig';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import axios from 'axios';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function UserHomeScreen({ navigation }) {
+  // State initialization
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -146,7 +148,7 @@ export default function UserHomeScreen({ navigation }) {
         participants: [currentUser.uid, selectedEvent.organizerId],
         participantInfo: {
           [currentUser.uid]: {
-            name: currentUser.name || 'User',
+            name: currentUser.displayName || 'User',
             email: currentUser.email || '',
             photoURL: currentUser.photoURL || null
           },
@@ -191,16 +193,37 @@ export default function UserHomeScreen({ navigation }) {
   const renderEvent = ({ item }) => (
     <TouchableOpacity 
       onPress={() => handleSelectEvent(item)}
-      style={styles.eventCard}
+      style={[
+        styles.eventCard,
+        selectedEvent?._id === item._id && styles.selectedEventCard
+      ]}
     >
-      <Text style={styles.eventTitle}>{item.name}</Text>
-      <Text style={styles.eventBy}>By {item.organizerName}</Text>
-      <Text style={styles.eventDescription}>{item.description}</Text>
-      <View style={styles.eventDetails}>
-        <Text style={styles.eventDate}>• {new Date(item.date).toLocaleDateString()}</Text>
-        <Text style={styles.eventLocation}>• {item.location.address}</Text>
+      <View style={styles.eventHeaderContainer}>
+        <Text style={styles.eventTitle}>{item.name}</Text>
+        <Ionicons name="chevron-forward" size={20} color="#555" />
       </View>
-      <View style={styles.divider} />
+      <Text style={styles.eventBy}>Hosted by {item.organizerName}</Text>
+      <Text style={styles.eventDescription} numberOfLines={2}>
+        {item.description}
+      </Text>
+      <View style={styles.eventDetails}>
+        <View style={styles.detailItem}>
+          <Ionicons name="calendar" size={14} color="#555" />
+          <Text style={styles.detailText}>
+            {new Date(item.date).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric'
+            })}
+          </Text>
+        </View>
+        <View style={styles.detailItem}>
+          <Ionicons name="location" size={14} color="#555" />
+          <Text style={styles.detailText} numberOfLines={1}>
+            {item.location.address}
+          </Text>
+        </View>
+      </View>
     </TouchableOpacity>
   );
 
@@ -212,52 +235,87 @@ export default function UserHomeScreen({ navigation }) {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#0000ff" />
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#000" />
+        <Text style={styles.loadingText}>Loading events...</Text>
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.centered}>
+      <View style={styles.errorContainer}>
+        <Ionicons name="warning" size={50} color="#000" />
         <Text style={styles.errorText}>Error loading events</Text>
-        <Button 
-          title="Retry" 
+        <Text style={styles.errorSubText}>{error}</Text>
+        <TouchableOpacity 
+          style={styles.retryButton}
           onPress={fetchEvents}
-        />
+        >
+          <Text style={styles.retryButtonText}>Try Again</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
   if (selectedEvent) {
     return (
-      <View style={styles.container}>
+      <View style={styles.detailContainer}>
         <TouchableOpacity 
           onPress={() => setSelectedEvent(null)} 
           style={styles.backButton}
         >
-          <Text style={styles.backButtonText}>← Back</Text>
+          <Ionicons name="arrow-back" size={24} color="#000" />
+          <Text style={styles.backButtonText}>All Events</Text>
         </TouchableOpacity>
         
-        <Text style={styles.eventHeader}>{selectedEvent.name}</Text>
-        <Text style={styles.eventBy}>By {organizerStatus.name}</Text>
-        <Text style={styles.eventDescription}>{selectedEvent.description}</Text>
+        <View style={styles.eventImagePlaceholder} />
         
-        <View style={styles.eventDetails}>
-          <Text style={styles.eventDate}>• {new Date(selectedEvent.date).toLocaleDateString()}</Text>
-          <Text style={styles.eventLocation}>• {selectedEvent.location.address}</Text>
+        <Text style={styles.detailTitle}>{selectedEvent.name}</Text>
+        <Text style={styles.detailOrganizer}>Organized by {organizerStatus.name}</Text>
+        
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>About this event</Text>
+          <Text style={styles.detailDescription}>{selectedEvent.description}</Text>
         </View>
         
-        <View style={styles.buttonContainer}>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Details</Text>
+          <View style={styles.detailRow}>
+            <Ionicons name="calendar" size={20} color="#000" style={styles.detailIcon} />
+            <View>
+              <Text style={styles.detailLabel}>Date</Text>
+              <Text style={styles.detailValue}>
+                {new Date(selectedEvent.date).toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  month: 'long',
+                  day: 'numeric',
+                  year: 'numeric'
+                })}
+              </Text>
+            </View>
+          </View>
+          
+          <View style={styles.detailRow}>
+            <Ionicons name="location" size={20} color="#000" style={styles.detailIcon} />
+            <View>
+              <Text style={styles.detailLabel}>Location</Text>
+              <Text style={styles.detailValue}>{selectedEvent.location.address}</Text>
+            </View>
+          </View>
+        </View>
+        
+        <View style={styles.footer}>
           {chatLoading ? (
-            <ActivityIndicator size="small" color="#0000ff" />
+            <ActivityIndicator size="small" color="#000" />
           ) : (
-            <Button 
-              title="Chat with Organizer" 
+            <TouchableOpacity 
+              style={styles.chatButton}
               onPress={handleChatWithOrganizer}
-              color="#007AFF"
-            />
+            >
+              <Ionicons name="chatbubble-ellipses" size={20} color="#fff" />
+              <Text style={styles.chatButtonText}>Message Organizer</Text>
+            </TouchableOpacity>
           )}
         </View>
       </View>
@@ -266,11 +324,24 @@ export default function UserHomeScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Donatelt</Text>
+      <View style={styles.headerContainer}>
+        <Text style={styles.header}>Upcoming Events</Text>
+        <TouchableOpacity>
+          <Ionicons name="search" size={24} color="#000" />
+        </TouchableOpacity>
+      </View>
       
       {events.length === 0 ? (
-        <View style={styles.centered}>
-          <Text>No events available</Text>
+        <View style={styles.emptyContainer}>
+          <Ionicons name="calendar" size={50} color="#aaa" />
+          <Text style={styles.emptyText}>No events available</Text>
+          <Text style={styles.emptySubText}>Check back later for new events</Text>
+          <TouchableOpacity 
+            style={styles.refreshButton}
+            onPress={fetchEvents}
+          >
+            <Text style={styles.refreshButtonText}>Refresh</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList
@@ -278,6 +349,7 @@ export default function UserHomeScreen({ navigation }) {
           keyExtractor={(item) => item._id}
           renderItem={renderEvent}
           contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
         />
       )}
     </View>
@@ -287,78 +359,224 @@ export default function UserHomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    backgroundColor: '#fff'
+    padding: 16,
+    backgroundColor: '#fff',
+  },
+  headerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
   },
   header: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    color: '#000'
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  errorText: {
-    color: 'red',
-    marginBottom: 20
-  },
-  listContent: {
-    paddingBottom: 20
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#000',
   },
   eventCard: {
-    marginBottom: 20
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#eee',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  selectedEventCard: {
+    borderColor: '#000',
+  },
+  eventHeaderContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   eventTitle: {
-    fontWeight: 'bold',
     fontSize: 18,
-    marginBottom: 5,
-    color: '#000'
+    fontWeight: '600',
+    color: '#000',
+    flex: 1,
   },
   eventBy: {
-    color: '#666',
-    marginBottom: 10,
-    fontSize: 14
+    color: '#555',
+    fontSize: 14,
+    marginBottom: 8,
   },
   eventDescription: {
     color: '#333',
-    marginBottom: 10,
-    fontSize: 14
+    fontSize: 14,
+    marginBottom: 12,
+    lineHeight: 20,
   },
   eventDetails: {
     flexDirection: 'row',
-    marginBottom: 15
+    justifyContent: 'space-between',
   },
-  eventDate: {
-    color: '#666',
-    marginRight: 10,
-    fontSize: 14
+  detailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
-  eventLocation: {
-    color: '#666',
-    fontSize: 14
+  detailText: {
+    color: '#555',
+    fontSize: 13,
+    marginLeft: 6,
   },
-  divider: {
-    height: 1,
-    backgroundColor: '#eee',
-    marginVertical: 10
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  loadingText: {
+    marginTop: 16,
+    color: '#555',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    backgroundColor: '#fff',
+  },
+  errorText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000',
+    marginTop: 16,
+  },
+  errorSubText: {
+    fontSize: 14,
+    color: '#555',
+    marginTop: 8,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  retryButton: {
+    backgroundColor: '#000',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000',
+    marginTop: 16,
+  },
+  emptySubText: {
+    fontSize: 14,
+    color: '#555',
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  refreshButton: {
+    borderWidth: 1,
+    borderColor: '#000',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  refreshButtonText: {
+    color: '#000',
+    fontWeight: '600',
+  },
+  detailContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
   },
   backButton: {
-    marginBottom: 20
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
   },
   backButtonText: {
     fontSize: 16,
-    color: '#007AFF'
+    color: '#000',
+    marginLeft: 8,
   },
-  eventHeader: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 5,
-    color: '#000'
+  eventImagePlaceholder: {
+    height: 200,
+    backgroundColor: '#eee',
+    width: '100%',
   },
-  buttonContainer: {
-    marginTop: 30
-  }
+  detailTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#000',
+    marginHorizontal: 16,
+    marginTop: 16,
+  },
+  detailOrganizer: {
+    fontSize: 16,
+    color: '#555',
+    marginHorizontal: 16,
+    marginBottom: 24,
+  },
+  section: {
+    marginHorizontal: 16,
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 12,
+  },
+  detailDescription: {
+    fontSize: 15,
+    color: '#333',
+    lineHeight: 22,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  detailIcon: {
+    marginRight: 16,
+  },
+  detailLabel: {
+    fontSize: 14,
+    color: '#555',
+    marginBottom: 2,
+  },
+  detailValue: {
+    fontSize: 16,
+    color: '#000',
+  },
+  footer: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  chatButton: {
+    backgroundColor: '#000',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 8,
+  },
+  chatButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  listContent: {
+    paddingBottom: 16,
+  },
 });

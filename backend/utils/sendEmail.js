@@ -12,11 +12,13 @@ const sendUpdateEmail = (toEmail, donation) => {
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: toEmail,
-    subject: 'Your Donation Has Been Updated',
+    subject: 'Your Pickup request Has Been Updated',
     text: `
 Hi,
 
-Your donation "${donation.name}" has been updated.
+Your request for "${donation.description}" has been updated. 
+It will be picked by "${donation.assignee}". 
+Details are mentioned below.
 
 Status: ${donation.status}
 Assignee: ${donation.assignee}

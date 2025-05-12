@@ -117,10 +117,25 @@ export default function MapScreen() {
     setError(null);
     
     try {
-      const response = await axios.get('http://localhost:5000/api/user/donation-boxes');
-      const allBoxes = response.data;
+      // Modified to send coordinates and radius in the request
+      // Limiting to 10 results with a radius of 5 miles
+      const response = await axios.get(
+        `http://localhost:5000/api/user/donation-boxes?lat=${latitude}&lng=${longitude}&radius=5&limit=10`
+      );
       
-      const boxesWithDistance = allBoxes
+      const nearbyBoxes = response.data;
+      console.log(`Fetched ${nearbyBoxes.length} nearby boxes`);
+      
+      if (nearbyBoxes.length === 0) {
+        console.log("No boxes found nearby, trying with a larger radius");
+        // If no boxes found, try with a larger radius
+        const fallbackResponse = await axios.get(
+          `http://localhost:5000/api/user/donation-boxes?lat=${latitude}&lng=${longitude}&radius=20&limit=10`
+        );
+        nearbyBoxes.push(...fallbackResponse.data);
+      }
+      
+      const boxesWithDistance = nearbyBoxes
         .filter(box => box.coordinates && typeof box.coordinates.latitude === 'number' && typeof box.coordinates.longitude === 'number')
         .map(box => {
           const distance = calculateDistance(
@@ -141,7 +156,7 @@ export default function MapScreen() {
       
       const sortedBoxes = boxesWithDistance.sort((a, b) => 
         parseFloat(a.distance) - parseFloat(b.distance)
-      );
+      ).slice(0, 10); // Ensure we display maximum 10 results
       
       setBoxes(sortedBoxes);
       
@@ -273,15 +288,21 @@ export default function MapScreen() {
         />
         {showSearchResults && (
           <View style={styles.searchResultsContainer}>
-            {searchResults.map((result) => (
-              <TouchableOpacity
-                key={result.place_id}
-                style={styles.searchResultItem}
-                onPress={() => handleLocationSelect(result)}
-              >
-                <Text>{result.description}</Text>
-              </TouchableOpacity>
-            ))}
+            <ScrollView 
+              style={styles.searchResultsScroll}
+              keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled={true}
+            >
+              {searchResults.map((result) => (
+                <TouchableOpacity
+                  key={result.place_id}
+                  style={styles.searchResultItem}
+                  onPress={() => handleLocationSelect(result)}
+                >
+                  <Text>{result.description}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
         )}
       </View>
@@ -327,34 +348,42 @@ export default function MapScreen() {
       
       {/* Nearby Donation Boxes List */}
       <Text style={styles.sectionHeader}>
-        Nearby Donation Boxes {boxes.length > 0 ? `(${boxes.length})` : ''}
-      </Text>
+        Nearby Donation Boxes </Text>
       
       {boxes.length === 0 && !loading ? (
         <Text style={styles.noBoxesText}>No donation boxes found nearby.</Text>
       ) : (
-        <ScrollView style={styles.boxesContainer}>
-          {boxes.map((box) => (
-            <View key={box._id} style={styles.boxCard}>
-              <Text style={styles.boxName}>{box.name}</Text>
-              <Text style={styles.boxDistance}>{box.distance}</Text>
-              <Text style={styles.boxAddress}>{box.address}</Text>
-              
-              <TouchableOpacity 
-                style={styles.directionsButton}
-                onPress={() => openDirections(
-                  box.location.coordinates[1],
-                  box.location.coordinates[0],
-                  box.name
-                )}
-              >
-                <Text style={styles.directionsText}>Directions</Text>
-              </TouchableOpacity>
-              
-              <View style={styles.divider} />
-            </View>
-          ))}
-        </ScrollView>
+        <View style={styles.scrollContainer}>
+          <ScrollView 
+            style={styles.boxesContainer}
+            contentContainerStyle={styles.boxesContentContainer}
+            showsVerticalScrollIndicator={true}
+            persistentScrollbar={true}
+            alwaysBounceVertical={true}
+            scrollEventThrottle={16}
+          >
+            {boxes.map((box) => (
+              <View key={box._id || Math.random().toString()} style={styles.boxCard}>
+                <Text style={styles.boxName}>{box.name}</Text>
+                <Text style={styles.boxDistance}>{box.distance}</Text>
+                <Text style={styles.boxAddress}>{box.address}</Text>
+                
+                <TouchableOpacity 
+                  style={styles.directionsButton}
+                  onPress={() => openDirections(
+                    box.location.coordinates[1],
+                    box.location.coordinates[0],
+                    box.name
+                  )}
+                >
+                  <Text style={styles.directionsText}>Directions</Text>
+                </TouchableOpacity>
+                
+                <View style={styles.divider} />
+              </View>
+            ))}
+          </ScrollView>
+        </View>
       )}
     </View>
   );
@@ -405,7 +434,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     zIndex: 1000,
     maxHeight: 200,
-    overflow: 'scroll'
+    overflow: 'hidden'
+  },
+  searchResultsScroll: {
+    maxHeight: 200
   },
   searchResultItem: {
     padding: 10,
@@ -438,8 +470,21 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     color: '#000'
   },
+  scrollContainer: {
+    flex: 1,
+    height: Platform.OS === 'web' ? 350 : '60%',
+    borderWidth: 1,
+    borderColor: '#eee',
+    borderRadius: 8,
+    overflow: 'hidden'
+  },
   boxesContainer: {
-    flex: 1
+    flex: 1,
+    height: '100%'
+  },
+  boxesContentContainer: {
+    paddingVertical: 10,
+    paddingHorizontal: 5
   },
   boxCard: {
     marginBottom: 15,
@@ -464,7 +509,7 @@ const styles = StyleSheet.create({
     fontSize: 14
   },
   directionsButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#000',
     padding: 10,
     borderRadius: 5,
     alignSelf: 'flex-start',
@@ -489,7 +534,7 @@ const styles = StyleSheet.create({
     borderRadius: 5
   },
   refreshText: {
-    color: '#007AFF',
+    color: '#000',
     fontSize: 12,
     fontWeight: 'bold'
   },
