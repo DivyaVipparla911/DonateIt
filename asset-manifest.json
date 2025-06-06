@@ -1,0 +1,21 @@
+{
+  "files": {
+    "main.js": "/DonateIt/static/js/main.6a7f2e41.js",
+    "static/js/621.7363ff50.js": "/DonateIt/static/js/621.7363ff50.js",
+    "static/media/Ionicons.ttf": "/DonateIt/static/media/Ionicons.9b6b1954a5eb6efeaf11.ttf",
+    "static/media/MaterialIcons.ttf": "/DonateIt/static/media/MaterialIcons.f20305dee9d396fea5c7.ttf",
+    "favicon.ico": "/DonateIt/favicon.ico",
+    "index.html": "/DonateIt/index.html",
+    "favicon-32.png": "/DonateIt/favicon-32.png",
+    "static/media/powered_by_google_on_white.png": "/DonateIt/static/media/powered_by_google_on_white.f241a554561961c8f6bb.png",
+    "favicon-16.png": "/DonateIt/favicon-16.png",
+    "serve.json": "/DonateIt/serve.json",
+    "manifest.json": "/DonateIt/manifest.json",
+    "main.6a7f2e41.js.map": "/DonateIt/static/js/main.6a7f2e41.js.map",
+    "621.7363ff50.js.map": "/DonateIt/static/js/621.7363ff50.js.map"
+  },
+  "entrypoints": [
+    "static/js/621.7363ff50.js",
+    "static/js/main.6a7f2e41.js"
+  ]
+}
